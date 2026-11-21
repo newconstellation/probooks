@@ -17,7 +17,7 @@ export function CustomersImport() {
         resource={'customers'}
         onImportSuccess={handleImportSuccess}
         onCancelClick={handleCancelBtnClick}
-        exampleTitle="Customers Example"
+        exampleTitle="Clients Example"
       />
     </DashboardInsider>
   );

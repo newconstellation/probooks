@@ -62,6 +62,7 @@ export * from './misc';
 export * from './notifications';
 export * from './reports';
 export * from './workspaces';
+export * from './client-jobs';
 export * from './audit-logs';
 
 /**

@@ -589,8 +589,27 @@ export const getDashboardRoutes = () => [
       })),
     ),
     backLink: true,
-    pageTitle: 'Customers Import',
+    pageTitle: 'Clients Import',
     defaultSearchResource: RESOURCES_TYPES.CUSTOMER,
+  },
+  {
+    path: `/jobs/:id`,
+    component: lazy(() =>
+      import('@/containers/Jobs/JobPage').then((m) => ({ default: m.JobPage })),
+    ),
+    breadcrumb: 'Job',
+    pageTitle: 'Job',
+    backLink: true,
+  },
+  {
+    path: `/jobs`,
+    component: lazy(() =>
+      import('@/containers/Jobs/JobsList').then((m) => ({
+        default: m.JobsList,
+      })),
+    ),
+    breadcrumb: 'Jobs',
+    pageTitle: 'Jobs',
   },
   {
     path: `/customers/:id/edit`,

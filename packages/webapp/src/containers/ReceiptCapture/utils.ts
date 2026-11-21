@@ -240,6 +240,7 @@ export interface ReceiptCaptureValues {
   reimbursable: boolean;
   reimburseCustomerId: string;
   reimburseInvoiceId: string;
+  projectId: string;
 }
 
 export function todayISO() {
@@ -259,7 +260,7 @@ export function validateReceipt(
   if (!values.categoryAccountId) return 'Pick a category.';
   if (!values.paidFromAccountId) return 'Pick what you paid with.';
   if (values.reimbursable && !values.reimburseCustomerId)
-    return 'Pick who will pay you back.';
+    return 'Pick the client who will pay you back.';
   return null;
 }
 
@@ -287,6 +288,7 @@ export function buildExpenseRequest(
     ...(values.reimbursable
       ? {
           reimburseCustomerId: Number(values.reimburseCustomerId),
+          ...(values.projectId ? { projectId: Number(values.projectId) } : {}),
           ...(values.reimburseInvoiceId
             ? { reimburseInvoiceId: Number(values.reimburseInvoiceId) }
             : {}),

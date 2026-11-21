@@ -173,6 +173,17 @@ export class CommandExpenseDto {
   })
   reimburseInvoiceId?: number | null;
 
+  @IsOptional()
+  @ToNumber()
+  @IsInt()
+  @ApiProperty({
+    description: 'The client job the expense is billed to',
+    required: false,
+    nullable: true,
+    example: 1,
+  })
+  projectId?: number | null;
+
   @ToNumber()
   @IsNumber()
   @IsOptional()

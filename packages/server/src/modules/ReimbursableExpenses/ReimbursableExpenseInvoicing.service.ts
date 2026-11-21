@@ -230,7 +230,7 @@ export class ReimbursableExpenseInvoicing {
    * @param {Expense} expense
    * @returns {string}
    */
-  private getLineDescription(expense: Expense): string {
+  public getLineDescription(expense: Expense): string {
     const date = moment(expense.paymentDate).format('MMM D, YYYY');
     const note = expense.description?.trim();
     return note
@@ -244,7 +244,7 @@ export class ReimbursableExpenseInvoicing {
    * @param {Knex.Transaction} trx
    * @returns {Promise<number>} The item id.
    */
-  private async getOrCreateReimbursableItem(
+  public async getOrCreateReimbursableItem(
     trx?: Knex.Transaction,
   ): Promise<number> {
     const foundItem = await this.itemModel()

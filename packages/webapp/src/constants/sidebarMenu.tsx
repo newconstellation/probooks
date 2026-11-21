@@ -370,6 +370,15 @@ export const SidebarMenu: SidebarMenuItem[] = [
             },
           },
           {
+            text: 'Jobs',
+            href: '/jobs',
+            type: ISidebarMenuItemType.Link,
+            permission: {
+              subject: AbilitySubject.Customer,
+              ability: CustomerAction.View,
+            },
+          },
+          {
             text: <T id={'sidebar.vendors'} />,
             href: '/vendors',
             type: ISidebarMenuItemType.Link,

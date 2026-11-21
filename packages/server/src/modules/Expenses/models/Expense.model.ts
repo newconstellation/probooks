@@ -30,6 +30,7 @@ export class Expense extends TenantBaseModel {
   reimbursable?: boolean;
   reimburseCustomerId?: number | null;
   reimburseInvoiceId?: number | null;
+  projectId?: number | null;
   paymentAccountId!: number;
   peyeeId!: number;
   referenceNo!: string;
