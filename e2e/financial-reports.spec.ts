@@ -219,11 +219,11 @@ test.describe('financial reports', () => {
     await waitForReportRows(page, 'ap-aging');
   });
 
-  test('should render the Customers Balance Summary report.', async ({
+  test('should render the Clients Balance Summary report.', async ({
     page,
   }) => {
     await page.goto('/financial-reports/customers-balance-summary');
-    await waitForReportPage(page, 'Customers Balance Summary');
+    await waitForReportPage(page, 'Clients Balance Summary');
     await waitForReportRows(page, 'customers-balance');
   });
 
@@ -235,9 +235,9 @@ test.describe('financial reports', () => {
     await waitForReportRows(page, 'vendors-balance');
   });
 
-  test('should render the Customers Transactions report.', async ({ page }) => {
+  test('should render the Clients Transactions report.', async ({ page }) => {
     await page.goto('/financial-reports/transactions-by-customers');
-    await waitForReportPage(page, 'Customers Transactions');
+    await waitForReportPage(page, 'Clients Transactions');
     await waitForReportRows(page, 'customers-transactions');
   });
 

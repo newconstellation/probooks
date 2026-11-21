@@ -53,6 +53,7 @@ import { SaleEstimatesModule } from '../SaleEstimates/SaleEstimates.module';
 import { BillsModule } from '../Bills/Bills.module';
 import { SaleInvoicesModule } from '../SaleInvoices/SaleInvoices.module';
 import { ReimbursableExpensesModule } from '../ReimbursableExpenses/ReimbursableExpenses.module';
+import { JobsModule } from '../Jobs/Jobs.module';
 import { RecurringInvoicesModule } from '../RecurringInvoices/RecurringInvoices.module';
 import { SaleReceiptsModule } from '../SaleReceipts/SaleReceipts.module';
 import { ManualJournalsModule } from '../ManualJournals/ManualJournals.module';
@@ -222,6 +223,7 @@ import { AppThrottleModule } from './AppThrottle.module';
     VendorsModule,
     SaleInvoicesModule,
     ReimbursableExpensesModule,
+    JobsModule,
     RecurringInvoicesModule,
     SaleEstimatesModule,
     SaleReceiptsModule,

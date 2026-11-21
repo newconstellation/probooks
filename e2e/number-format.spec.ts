@@ -67,7 +67,7 @@ const REPORTS: ReportConfig[] = [
     rowPrefix: 'ap-aging',
   },
   {
-    title: 'Customers Balance Summary',
+    title: 'Clients Balance Summary',
     path: '/financial-reports/customers-balance-summary',
     rowPrefix: 'customers-balance',
   },
@@ -77,7 +77,7 @@ const REPORTS: ReportConfig[] = [
     rowPrefix: 'vendors-balance',
   },
   {
-    title: 'Customers Transactions',
+    title: 'Clients Transactions',
     path: '/financial-reports/transactions-by-customers',
     rowPrefix: 'customers-transactions',
   },

@@ -25,7 +25,7 @@ export function CustomerFormBasicSection() {
 
   return (
     <Box data-section-id="primary">
-      <CustomerFormSectionTitle>Customer details</CustomerFormSectionTitle>
+      <CustomerFormSectionTitle>Client details</CustomerFormSectionTitle>
 
       {/**-----------Customer type. -----------*/}
       <CustomerTypeRadioField />
@@ -62,7 +62,7 @@ export function CustomerFormBasicSection() {
 
       <FFormGroup
         name={'code'}
-        label={'Customer Code'}
+        label={'Client Code'}
         helperText="Add a unique account number to identify, reference and search for the contact."
         inline
       >

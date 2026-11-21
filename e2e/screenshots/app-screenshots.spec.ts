@@ -386,7 +386,7 @@ test.describe('app screenshots', () => {
 
   test('captures the customers list', async ({ page }) => {
     await capture(page, '/customers', 'customers.png', {
-      title: 'Customers',
+      title: 'Clients',
       rowSelector: '.tbody .tr',
     });
   });

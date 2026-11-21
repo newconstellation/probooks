@@ -76,7 +76,7 @@ test.describe('invoices', () => {
     await page.getByRole('button', { name: 'Save as Draft' }).click();
 
     await expect(
-      page.getByText('Customer name is a required field'),
+      page.getByText('Client name is a required field'),
     ).toBeVisible({ timeout: 15_000 });
   });
 

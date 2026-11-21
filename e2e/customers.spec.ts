@@ -22,11 +22,11 @@ const companyName = () => `${faker.company.name()} ${faker.string.alphanumeric(4
  */
 async function waitForCustomersList(page: Page) {
   await expect(page.getByTestId('dashboard-topbar').locator('h1')).toHaveText(
-    'Customers',
+    'Clients',
     { timeout: 30_000 },
   );
   await expect(
-    page.getByRole('button', { name: 'New Customer' }).first(),
+    page.getByRole('button', { name: 'New Client' }).first(),
   ).toBeVisible({ timeout: 30_000 });
 }
 
@@ -103,7 +103,7 @@ async function createCustomer(
   },
 ) {
   await page.goto('/customers/new');
-  await waitForCustomerForm(page, 'New Customer');
+  await waitForCustomerForm(page, 'New Client');
 
   await page.getByTestId('customer-first-name-input').fill(firstName);
   await page.getByTestId('customer-last-name-input').fill(lastName);
@@ -118,7 +118,7 @@ async function createCustomer(
   await page.getByRole('button', { name: 'Save', exact: true }).click();
 
   await expect(
-    page.getByText('The customer has been created successfully.'),
+    page.getByText('The client has been created successfully.'),
   ).toBeVisible({ timeout: 15_000 });
 
   await waitForCustomersList(page);
@@ -150,7 +150,7 @@ async function filterCustomersBy(page: Page, displayName: string) {
  */
 async function deleteCustomerViaRow(page: Page, row: Locator) {
   await row.click({ button: 'right' });
-  await page.getByRole('menuitem', { name: 'Delete Customer' }).click();
+  await page.getByRole('menuitem', { name: 'Delete Client' }).click();
 
   await expect(page.getByTestId('customer-delete-alert')).toBeVisible();
   await page
@@ -160,7 +160,7 @@ async function deleteCustomerViaRow(page: Page, row: Locator) {
     .click();
 
   await expect(
-    page.getByText('The customer has been deleted successfully.'),
+    page.getByText('The client has been deleted successfully.'),
   ).toBeVisible({ timeout: 15_000 });
 }
 
@@ -173,7 +173,7 @@ test.describe('customers', () => {
     await waitForCustomersList(page);
 
     await expect(
-      page.getByRole('button', { name: 'New Customer' }).first(),
+      page.getByRole('button', { name: 'New Client' }).first(),
     ).toBeVisible();
   });
 
@@ -204,9 +204,9 @@ test.describe('customers', () => {
 
     const row = await filterCustomersBy(page, displayName);
     await row.click({ button: 'right' });
-    await page.getByRole('menuitem', { name: 'Edit Customer' }).click();
+    await page.getByRole('menuitem', { name: 'Edit Client' }).click();
 
-    await waitForCustomerForm(page, 'Edit Customer');
+    await waitForCustomerForm(page, 'Edit Client');
     await expect(
       page.getByTestId('customer-display-name-select'),
     ).toContainText(displayName, { timeout: 30_000 });
@@ -215,7 +215,7 @@ test.describe('customers', () => {
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
 
     await expect(
-      page.getByText('The item customer has been edited successfully.'),
+      page.getByText('The item client has been edited successfully.'),
     ).toBeVisible({ timeout: 15_000 });
 
     await waitForCustomersList(page);

@@ -35,6 +35,7 @@ import {
 import { useWorkspaces } from '@/ee/workspaces/hooks/query';
 import { useAccounts, useCreateAccount } from '@/hooks/query/accounts';
 import { useUploadAttachments } from '@/hooks/query/attachments';
+import { useClientJobs } from '@/hooks/query/client-jobs';
 import { useCustomers } from '@/hooks/query/customers';
 import { useCreateExpense } from '@/hooks/query/expenses';
 import { useInvoices } from '@/hooks/query/invoices';
@@ -48,6 +49,7 @@ interface SavedReceipt {
   category: string;
   invoiceNo?: string;
   customerName?: string;
+  jobName?: string;
 }
 
 /**
@@ -81,6 +83,7 @@ export function ReceiptCapturePage() {
       reimbursable: false,
       reimburseCustomerId: '',
       reimburseInvoiceId: '',
+      projectId: '',
     };
   };
   const [values, setValues] = useState<ReceiptCaptureValues>(emptyValues);
@@ -93,6 +96,13 @@ export function ReceiptCapturePage() {
     id: number;
     displayName: string;
   }>;
+  const { data: clientJobs = [] } = useClientJobs(
+    {
+      client_id: Number(values.reimburseCustomerId) || undefined,
+      status: 'active',
+    },
+    { enabled: !!values.reimburseCustomerId },
+  );
   const { data: invoicesData, isFetching: isInvoicesFetching } = useInvoices(
     { page_size: 500 } as Parameters<typeof useInvoices>[0],
     { enabled: !!values.reimburseCustomerId } as Parameters<
@@ -246,6 +256,8 @@ export function ReceiptCapturePage() {
             ?.name ||
           '',
         invoiceNo: invoice?.invoiceNo,
+        jobName: clientJobs.find((j) => String(j.id) === values.projectId)
+          ?.name,
         customerName: values.reimbursable
           ? customers.find((c) => String(c.id) === values.reimburseCustomerId)
               ?.displayName
@@ -319,7 +331,13 @@ export function ReceiptCapturePage() {
                 the receipt attached.
               </div>
             )}
-            {!saved.invoiceNo && saved.customerName && (
+            {!saved.invoiceNo && saved.jobName && (
+              <div>
+                Added to the {saved.jobName} job for {saved.customerName}. It
+                goes on the job's next invoice.
+              </div>
+            )}
+            {!saved.invoiceNo && !saved.jobName && saved.customerName && (
               <div>
                 Marked to bill back to {saved.customerName}. It is not on an
                 invoice yet.
@@ -469,7 +487,7 @@ export function ReceiptCapturePage() {
               <Switch
                 large
                 checked={values.reimbursable}
-                label="Reimbursable by a customer or job"
+                label="Reimbursable by a client"
                 onChange={(e) => {
                   const checked = (e.target as HTMLInputElement).checked;
                   setError(null);
@@ -478,7 +496,11 @@ export function ReceiptCapturePage() {
                     reimbursable: checked,
                     ...(checked
                       ? {}
-                      : { reimburseCustomerId: '', reimburseInvoiceId: '' }),
+                      : {
+                          reimburseCustomerId: '',
+                          reimburseInvoiceId: '',
+                          projectId: '',
+                        }),
                   }));
                 }}
               />
@@ -486,7 +508,7 @@ export function ReceiptCapturePage() {
 
             {values.reimbursable && (
               <ReimburseBox>
-                <FormGroup label="Customer or job" labelFor="receipt-customer">
+                <FormGroup label="Client" labelFor="receipt-customer">
                   <HTMLSelect
                     id="receipt-customer"
                     fill
@@ -499,10 +521,11 @@ export function ReceiptCapturePage() {
                         ...v,
                         reimburseCustomerId: id,
                         reimburseInvoiceId: '',
+                        projectId: '',
                       }));
                     }}
                     options={[
-                      { value: '', label: 'Pick a customer or job' },
+                      { value: '', label: 'Pick a client' },
                       ...customers.map((c) => ({
                         value: String(c.id),
                         label: c.displayName,
@@ -510,6 +533,24 @@ export function ReceiptCapturePage() {
                     ]}
                   />
                 </FormGroup>
+                {values.reimburseCustomerId && clientJobs.length > 0 && (
+                  <FormGroup label="Job" labelFor="receipt-job">
+                    <HTMLSelect
+                      id="receipt-job"
+                      fill
+                      large
+                      value={values.projectId}
+                      onChange={setField('projectId')}
+                      options={[
+                        { value: '', label: 'No specific job' },
+                        ...clientJobs.map((j) => ({
+                          value: String(j.id),
+                          label: j.name,
+                        })),
+                      ]}
+                    />
+                  </FormGroup>
+                )}
                 {values.reimburseCustomerId && (
                   <FormGroup
                     label="Add to invoice"
@@ -517,7 +558,9 @@ export function ReceiptCapturePage() {
                     helperText={
                       values.reimburseInvoiceId
                         ? 'The receipt goes on the invoice as a line item, with the photo attached.'
-                        : 'You can add it to an invoice later.'
+                        : values.projectId
+                          ? "It will be on the job's next invoice."
+                          : 'You can add it to an invoice later.'
                     }
                   >
                     <HTMLSelect

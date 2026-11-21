@@ -136,6 +136,13 @@ export class ExpenseResponseDto {
   reimburseInvoiceId?: number | null;
 
   @ApiProperty({
+    description: 'The client job the expense is billed to',
+    required: false,
+    nullable: true,
+  })
+  projectId?: number | null;
+
+  @ApiProperty({
     example: 1,
     description: 'The ID of the payment account used for this expense',
   })

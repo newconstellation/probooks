@@ -2638,6 +2638,113 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List client jobs with their unbilled totals. */
+        get: operations["JobsController_getJobs"];
+        put?: never;
+        /** Create a client job. */
+        post: operations["JobsController_createJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/labor/{entryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit an unbilled labor entry. */
+        put: operations["JobsController_editLaborEntry"];
+        post?: never;
+        /** Delete an unbilled labor entry. */
+        delete: operations["JobsController_deleteLaborEntry"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a client job. */
+        get: operations["JobsController_getJob"];
+        /** Edit a client job. */
+        put: operations["JobsController_editJob"];
+        post?: never;
+        /** Delete a job that has no labor or expenses. */
+        delete: operations["JobsController_deleteJob"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{id}/labor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the labor logged on a job. */
+        get: operations["JobsController_getLaborEntries"];
+        put?: never;
+        /** Log labor on a job. */
+        post: operations["JobsController_createLaborEntry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{id}/expenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the expenses billed to a job. */
+        get: operations["JobsController_getJobExpenses"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{id}/invoice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a draft invoice for the job's unbilled labor and expenses. */
+        post: operations["JobsController_invoiceJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/recurring-invoices": {
         parameters: {
             query?: never;
@@ -10419,6 +10526,8 @@ export interface components {
             reimburseCustomerId?: number | null;
             /** @description The invoice the expense was billed on */
             reimburseInvoiceId?: number | null;
+            /** @description The client job the expense is billed to */
+            projectId?: number | null;
             /**
              * @description The ID of the payment account used for this expense
              * @example 1
@@ -10597,6 +10706,11 @@ export interface components {
              */
             reimburseInvoiceId?: number | null;
             /**
+             * @description The client job the expense is billed to
+             * @example 1
+             */
+            projectId?: number | null;
+            /**
              * @description The exchange rate of the expense
              * @example 1
              */
@@ -10694,6 +10808,11 @@ export interface components {
              * @example 1
              */
             reimburseInvoiceId?: number | null;
+            /**
+             * @description The client job the expense is billed to
+             * @example 1
+             */
+            projectId?: number | null;
             /**
              * @description The exchange rate of the expense
              * @example 1
@@ -11661,6 +11780,78 @@ export interface components {
              * @default false
              */
             skipUndeletable: boolean;
+        };
+        CreateJobDto: {
+            /**
+             * @description Job name
+             * @example Kitchen remodel
+             */
+            name: string;
+            /** @description The client (customer) the job is for */
+            clientId: number;
+            /** @enum {string} */
+            status?: "active" | "completed";
+            /** @description Billable rate per hour */
+            hourlyRate?: number;
+            /** @description Billable rate per day */
+            dayRate?: number;
+            /** @description Whether overtime is billed */
+            overtimeBillable?: boolean;
+            /** @description Overtime rate per hour. Defaults to 1.5x the hourly rate. */
+            overtimeRate?: number;
+            deadline?: string;
+            notes?: string;
+        };
+        EditLaborEntryDto: {
+            /** @example 2026-11-21 */
+            date: string;
+            /** @enum {string} */
+            entryType: "hours" | "days";
+            /** @description Regular hours, or days for a day-rate entry */
+            quantity: number;
+            /** @description Overtime hours */
+            overtimeHours?: number;
+            /** @description Rate for this entry. Defaults to the job's rate. */
+            rate?: number;
+            /** @description Overtime rate. Defaults to the job's overtime rate. */
+            overtimeRate?: number;
+            description?: string;
+        };
+        EditJobDto: {
+            /**
+             * @description Job name
+             * @example Kitchen remodel
+             */
+            name: string;
+            /** @description The client (customer) the job is for */
+            clientId: number;
+            /** @enum {string} */
+            status?: "active" | "completed";
+            /** @description Billable rate per hour */
+            hourlyRate?: number;
+            /** @description Billable rate per day */
+            dayRate?: number;
+            /** @description Whether overtime is billed */
+            overtimeBillable?: boolean;
+            /** @description Overtime rate per hour. Defaults to 1.5x the hourly rate. */
+            overtimeRate?: number;
+            deadline?: string;
+            notes?: string;
+        };
+        CreateLaborEntryDto: {
+            /** @example 2026-11-21 */
+            date: string;
+            /** @enum {string} */
+            entryType: "hours" | "days";
+            /** @description Regular hours, or days for a day-rate entry */
+            quantity: number;
+            /** @description Overtime hours */
+            overtimeHours?: number;
+            /** @description Rate for this entry. Defaults to the job's rate. */
+            rate?: number;
+            /** @description Overtime rate. Defaults to the job's overtime rate. */
+            overtimeRate?: number;
+            description?: string;
         };
         RecurringInvoiceStateResponseDto: {
             /**
@@ -26532,6 +26723,285 @@ export interface operations {
         responses: {
             /** @description The vendors have been successfully deleted. */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_getJobs: {
+        parameters: {
+            query?: {
+                clientId?: number;
+                status?: "active" | "completed";
+            };
+            header: {
+                /** @description Value must be 'Bearer <token>' where <token> is an API key prefixed with 'bc_' or a JWT token. */
+                Authorization: string;
+                /** @description Required if Authorization is a JWT token. The organization ID to operate within. */
+                "organization-id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_createJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Value must be 'Bearer <token>' where <token> is an API key prefixed with 'bc_' or a JWT token. */
+                Authorization: string;
+                /** @description Required if Authorization is a JWT token. The organization ID to operate within. */
+                "organization-id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateJobDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_editLaborEntry: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Value must be 'Bearer <token>' where <token> is an API key prefixed with 'bc_' or a JWT token. */
+                Authorization: string;
+                /** @description Required if Authorization is a JWT token. The organization ID to operate within. */
+                "organization-id": string;
+            };
+            path: {
+                entryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditLaborEntryDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_deleteLaborEntry: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Value must be 'Bearer <token>' where <token> is an API key prefixed with 'bc_' or a JWT token. */
+                Authorization: string;
+                /** @description Required if Authorization is a JWT token. The organization ID to operate within. */
+                "organization-id": string;
+            };
+            path: {
+                entryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_getJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Value must be 'Bearer <token>' where <token> is an API key prefixed with 'bc_' or a JWT token. */
+                Authorization: string;
+                /** @description Required if Authorization is a JWT token. The organization ID to operate within. */
+                "organization-id": string;
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_editJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Value must be 'Bearer <token>' where <token> is an API key prefixed with 'bc_' or a JWT token. */
+                Authorization: string;
+                /** @description Required if Authorization is a JWT token. The organization ID to operate within. */
+                "organization-id": string;
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditJobDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_deleteJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Value must be 'Bearer <token>' where <token> is an API key prefixed with 'bc_' or a JWT token. */
+                Authorization: string;
+                /** @description Required if Authorization is a JWT token. The organization ID to operate within. */
+                "organization-id": string;
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_getLaborEntries: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Value must be 'Bearer <token>' where <token> is an API key prefixed with 'bc_' or a JWT token. */
+                Authorization: string;
+                /** @description Required if Authorization is a JWT token. The organization ID to operate within. */
+                "organization-id": string;
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_createLaborEntry: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Value must be 'Bearer <token>' where <token> is an API key prefixed with 'bc_' or a JWT token. */
+                Authorization: string;
+                /** @description Required if Authorization is a JWT token. The organization ID to operate within. */
+                "organization-id": string;
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLaborEntryDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_getJobExpenses: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Value must be 'Bearer <token>' where <token> is an API key prefixed with 'bc_' or a JWT token. */
+                Authorization: string;
+                /** @description Required if Authorization is a JWT token. The organization ID to operate within. */
+                "organization-id": string;
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_invoiceJob: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Value must be 'Bearer <token>' where <token> is an API key prefixed with 'bc_' or a JWT token. */
+                Authorization: string;
+                /** @description Required if Authorization is a JWT token. The organization ID to operate within. */
+                "organization-id": string;
+            };
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
