@@ -5,6 +5,7 @@ import {
   NavbarDivider,
   Intent,
   Alignment,
+  Icon as BlueprintIcon,
 } from '@blueprintjs/core';
 import * as FF from 'fp-ts/function';
 import { isEmpty } from 'lodash';
@@ -147,6 +148,12 @@ function ExpensesActionsBar({
             icon={<Icon icon="plus" />}
             text={<T id={'new_expense'} />}
             onClick={onClickNewExpense}
+          />
+          <Button
+            className={Classes.MINIMAL}
+            icon={<BlueprintIcon icon="camera" />}
+            text={'Snap receipt'}
+            onClick={() => history.push('/snap')}
           />
         </Can>
         <AdvancedFilterPopover

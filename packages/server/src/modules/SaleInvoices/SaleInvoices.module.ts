@@ -152,6 +152,7 @@ import { SubscriptionModule } from '../Subscription/Subscription.module';
   exports: [
     GetSaleInvoice,
     CreateSaleInvoice,
+    EditSaleInvoice,
     SendSaleInvoiceMail,
     SaleInvoicesCost,
     SaleInvoicePdf,
