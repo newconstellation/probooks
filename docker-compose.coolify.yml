@@ -1,0 +1,257 @@
+# ProBooks on Coolify (or any single Docker host).
+#
+# In Coolify: New Resource > Public Repository > this repo, branch main,
+# Build Pack "Docker Compose", compose file "/docker-compose.coolify.yml".
+# Then give the "webapp" service your domain (https://books.example.com).
+#
+# Nothing else needs to be filled in:
+# - Passwords and secrets use Coolify's generated SERVICE_PASSWORD_* values.
+# - File storage (receipts, attachments) runs on Garage, which configures
+#   itself on first start (see garage-prep and storage-init below).
+# - The webapp is the only public service. It forwards /api to the server.
+#
+# The server and webapp images are built by .github/workflows/probooks-images.yml
+# on every push to main.
+#
+# Running without Coolify: set the SERVICE_* values yourself in a .env file
+# next to this file, publish webapp's port 80, and run
+#   docker compose -f docker-compose.coolify.yml up -d
+
+services:
+  webapp:
+    image: ghcr.io/newconstellation/probooks-webapp:${PROBOOKS_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      - SERVICE_FQDN_WEBAPP_80
+    depends_on:
+      - server
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1/ || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  server:
+    image: ghcr.io/newconstellation/probooks-server:${PROBOOKS_TAG:-latest}
+    restart: unless-stopped
+    # Load the storage keys that storage-init wrote, then start the API.
+    command:
+      - sh
+      - -c
+      - 'set -a && . /probooks-config/s3.env && set +a && exec node packages/server/dist/main.js'
+    volumes:
+      - probooks-config:/probooks-config:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      migration:
+        condition: service_completed_successfully
+      storage-init:
+        condition: service_completed_successfully
+    environment: &server-env
+      - BASE_URL=${SERVICE_URL_WEBAPP:-http://localhost}
+      - APP_JWT_SECRET=${SERVICE_PASSWORD_64_JWT}
+      - TWO_FACTOR_ENCRYPTION_KEY=${SERVICE_PASSWORD_64_TWOFACTOR}
+      - TWO_FACTOR_ISSUER=ProBooks
+      - DB_HOST=mysql
+      - DB_USER=${SERVICE_USER_MYSQL}
+      - DB_PASSWORD=${SERVICE_PASSWORD_MYSQL}
+      - DB_CHARSET=utf8
+      - SYSTEM_DB_NAME=bigcapital_system
+      - TENANT_DB_NAME_PERFIX=bigcapital_tenant_
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - QUEUE_HOST=redis
+      - QUEUE_PORT=6379
+      - GOTENBERG_URL=http://gotenberg:3000
+      - GOTENBERG_DOCS_URL=http://server:3000/public/
+      - CLICKHOUSE_ENABLED=false
+      - SIGNUP_DISABLED=${SIGNUP_DISABLED:-false}
+      - SIGNUP_ALLOWED_EMAILS=${SIGNUP_ALLOWED_EMAILS:-}
+      - SIGNUP_EMAIL_CONFIRMATION=false
+      - FREE_TRIAL_DAYS=36500
+      - AI_ASSISTANT_ENABLED=false
+      - MAIL_HOST=${MAIL_HOST:-}
+      - MAIL_USERNAME=${MAIL_USERNAME:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_PORT=${MAIL_PORT:-}
+      - MAIL_SECURE=${MAIL_SECURE:-}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-ProBooks}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-}
+      - THROTTLE_GLOBAL_TTL=60000
+      - THROTTLE_GLOBAL_LIMIT=300
+      - THROTTLE_AUTH_TTL=60000
+      - THROTTLE_AUTH_LIMIT=30
+
+  # Runs the database migrations, then exits.
+  migration:
+    image: ghcr.io/newconstellation/probooks-server:${PROBOOKS_TAG:-latest}
+    restart: 'no'
+    exclude_from_hc: true
+    working_dir: /app/packages/server
+    command:
+      - sh
+      - -c
+      - 'node dist/cli.js system:migrate:latest && node dist/cli.js tenants:migrate:latest'
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment: *server-env
+
+  mysql:
+    build:
+      context: ./docker/mariadb
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=bigcapital_system
+      - MYSQL_USER=${SERVICE_USER_MYSQL}
+      - MYSQL_PASSWORD=${SERVICE_PASSWORD_MYSQL}
+      - MYSQL_ROOT_PASSWORD=${SERVICE_PASSWORD_MYSQLROOT}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" --silent']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  redis:
+    build:
+      context: ./docker/redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+
+  gotenberg:
+    image: gotenberg/gotenberg:7
+    restart: unless-stopped
+
+  # Writes Garage's config and secrets on first start, then exits.
+  garage-prep:
+    image: alpine:3.20
+    restart: 'no'
+    exclude_from_hc: true
+    volumes:
+      - probooks-config:/probooks-config
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        cd /probooks-config
+        [ -f garage-rpc-secret ] || { head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > garage-rpc-secret; }
+        [ -f garage-admin-token ] || { head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > garage-admin-token; }
+        chmod 600 garage-rpc-secret garage-admin-token
+        cat > garage.toml <<'EOF'
+        metadata_dir = "/var/lib/garage/meta"
+        data_dir = "/var/lib/garage/data"
+        db_engine = "sqlite"
+        replication_mode = "none"
+        rpc_bind_addr = "0.0.0.0:3901"
+        rpc_secret_file = "/probooks-config/garage-rpc-secret"
+
+        [s3_api]
+        s3_region = "garage"
+        api_bind_addr = "0.0.0.0:3900"
+
+        [admin]
+        api_bind_addr = "0.0.0.0:3903"
+        admin_token_file = "/probooks-config/garage-admin-token"
+        EOF
+        echo "garage config ready"
+
+  garage:
+    image: dxflrs/garage:v1.3.1
+    restart: unless-stopped
+    environment:
+      - GARAGE_CONFIG_FILE=/probooks-config/garage.toml
+    volumes:
+      - probooks-config:/probooks-config:ro
+      - garage-data:/var/lib/garage
+    depends_on:
+      garage-prep:
+        condition: service_completed_successfully
+
+  # Sets up Garage's layout, access key and bucket, writes the keys to
+  # /probooks-config/s3.env for the server, then exits. Safe to re-run.
+  storage-init:
+    image: ghcr.io/newconstellation/probooks-server:${PROBOOKS_TAG:-latest}
+    restart: 'no'
+    exclude_from_hc: true
+    user: root
+    volumes:
+      - probooks-config:/probooks-config
+    depends_on:
+      - garage
+    command:
+      - node
+      - -e
+      - |
+        const fs = require('fs');
+        const dir = '/probooks-config';
+        const token = fs.readFileSync(dir + '/garage-admin-token', 'utf8').trim();
+        const api = 'http://garage:3903/v1';
+        const call = async (path, body) => {
+          const res = await fetch(api + path, {
+            method: body === undefined ? 'GET' : 'POST',
+            headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: body === undefined ? undefined : JSON.stringify(body),
+          });
+          const text = await res.text();
+          return { ok: res.ok, status: res.status, data: text ? JSON.parse(text) : null };
+        };
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        (async () => {
+          let status;
+          for (let i = 0; i < 60; i++) {
+            try { status = await call('/status'); if (status.ok) break; } catch (e) {}
+            await sleep(2000);
+          }
+          if (!status || !status.ok) throw new Error('Garage did not start');
+          const nodeId = status.data.node;
+          const me = (status.data.nodes || []).find((n) => n.id === nodeId);
+          if (!me || !me.role) {
+            await call('/layout', [{ id: nodeId, zone: 'dc1', capacity: 100e9, tags: [] }]);
+            const layout = await call('/layout');
+            const applied = await call('/layout/apply', { version: layout.data.version + 1 });
+            if (!applied.ok) throw new Error('Layout apply failed: ' + JSON.stringify(applied.data));
+            console.log('storage layout applied');
+          }
+          let key = await call('/key?search=probooks&showSecretKey=true');
+          if (!key.ok) {
+            key = await call('/key', { name: 'probooks' });
+            if (!key.ok) throw new Error('Key create failed: ' + JSON.stringify(key.data));
+            console.log('storage key created');
+          }
+          let bucket = await call('/bucket?globalAlias=probooks');
+          if (!bucket.ok) {
+            bucket = await call('/bucket', { globalAlias: 'probooks' });
+            if (!bucket.ok) throw new Error('Bucket create failed: ' + JSON.stringify(bucket.data));
+            console.log('storage bucket created');
+          }
+          const allow = await call('/bucket/allow', {
+            bucketId: bucket.data.id,
+            accessKeyId: key.data.accessKeyId,
+            permissions: { read: true, write: true, owner: true },
+          });
+          if (!allow.ok) throw new Error('Bucket allow failed: ' + JSON.stringify(allow.data));
+          fs.writeFileSync(dir + '/s3.env', [
+            'S3_REGION=garage',
+            'S3_ENDPOINT=http://garage:3900',
+            'S3_BUCKET=probooks',
+            'S3_FORCE_PATH_STYLE=true',
+            'S3_ACCESS_KEY_ID=' + key.data.accessKeyId,
+            'S3_SECRET_ACCESS_KEY=' + key.data.secretAccessKey,
+            '',
+          ].join('\n'), { mode: 0o644 });
+          console.log('storage ready');
+        })().catch((e) => { console.error(e.message || e); process.exit(1); });
+
+volumes:
+  mysql-data:
+  redis-data:
+  garage-data:
+  probooks-config:
