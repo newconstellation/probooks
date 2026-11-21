@@ -1,8 +1,10 @@
 import { ToNumber } from '@/common/decorators/Validators';
 import { parseBoolean } from '@/utils/parse-boolean';
 import { ApiProperty } from '@nestjs/swagger';
+import { EXPENSE_TAX_TREATMENTS, ExpenseTaxTreatment } from '../constants';
 import { Transform, Type } from 'class-transformer';
 import {
+  IsIn,
   IsArray,
   IsBoolean,
   IsDateString,
@@ -108,6 +110,18 @@ export class CommandExpenseDto {
     example: 'This is a description',
   })
   description?: string;
+
+  @IsOptional()
+  @IsIn([...EXPENSE_TAX_TREATMENTS, null])
+  @ApiProperty({
+    description:
+      'How the expense counts for income tax: fully deductible, 50% deductible business meals, or personal.',
+    enum: EXPENSE_TAX_TREATMENTS,
+    required: false,
+    nullable: true,
+    example: ExpenseTaxTreatment.Deductible,
+  })
+  taxTreatment?: ExpenseTaxTreatment | null;
 
   @ToNumber()
   @IsNumber()

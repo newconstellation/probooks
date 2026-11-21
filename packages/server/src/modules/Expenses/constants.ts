@@ -87,3 +87,14 @@ export const SUPPORTED_EXPENSE_PAYMENT_ACCOUNT_TYPES = [
   ACCOUNT_TYPE.NON_CURRENT_ASSET,
   ACCOUNT_TYPE.FIXED_ASSET,
 ];
+
+/**
+ * How an expense counts for income tax, tagged when a receipt is captured.
+ */
+export enum ExpenseTaxTreatment {
+  Deductible = 'deductible',
+  Meals50 = 'meals_50',
+  Personal = 'personal',
+}
+
+export const EXPENSE_TAX_TREATMENTS = Object.values(ExpenseTaxTreatment);

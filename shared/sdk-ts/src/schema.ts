@@ -10409,6 +10409,8 @@ export interface components {
              * @example Office supplies and equipment
              */
             description?: string;
+            /** @description How the expense counts for income tax: deductible, meals_50 or personal. */
+            taxTreatment?: string | null;
             /**
              * @description The ID of the payment account used for this expense
              * @example 1
@@ -10560,6 +10562,12 @@ export interface components {
              */
             description: string;
             /**
+             * @description How the expense counts for income tax: fully deductible, 50% deductible business meals, or personal.
+             * @example deductible
+             * @enum {string|null}
+             */
+            taxTreatment?: "deductible" | "meals_50" | "personal" | null;
+            /**
              * @description The exchange rate of the expense
              * @example 1
              */
@@ -10630,6 +10638,12 @@ export interface components {
              * @example This is a description
              */
             description: string;
+            /**
+             * @description How the expense counts for income tax: fully deductible, 50% deductible business meals, or personal.
+             * @example deductible
+             * @enum {string|null}
+             */
+            taxTreatment?: "deductible" | "meals_50" | "personal" | null;
             /**
              * @description The exchange rate of the expense
              * @example 1

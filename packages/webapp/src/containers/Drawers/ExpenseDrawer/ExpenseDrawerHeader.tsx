@@ -13,6 +13,7 @@ import {
   DetailsMenu,
   ExchangeRateDetailItem,
 } from '@/components';
+import { getTaxTreatmentLabel } from '@/containers/ReceiptCapture/utils';
 
 /**
  * Expense drawer content.
@@ -43,6 +44,12 @@ export function ExpenseDrawerHeader() {
 
             <DetailItem name={'reference'} label={intl.get('reference_no')}>
               {defaultTo(expense?.referenceNo, '-')}
+            </DetailItem>
+
+            <DetailItem name={'tax-treatment'} label={'For taxes'}>
+              {getTaxTreatmentLabel(
+                (expense as { taxTreatment?: string | null })?.taxTreatment,
+              )}
             </DetailItem>
 
             <ExchangeRateDetailItem

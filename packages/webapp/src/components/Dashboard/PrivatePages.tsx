@@ -13,6 +13,12 @@ const SetupWizardPage = lazy(() =>
     default: m.WizardSetupPage,
   })),
 );
+const ReceiptCapturePage = lazy(() =>
+  import('@/containers/ReceiptCapture/ReceiptCapturePage').then((m) => ({
+    default: m.ReceiptCapturePage,
+  })),
+);
+
 /**
  * Dashboard inner private pages.
  */
@@ -23,6 +29,11 @@ export default function DashboardPrivatePages() {
         <PrivatePagesProvider>
           <Switch>
             <Route path={'/setup'} children={<SetupWizardPage />} />
+            <Route path={'/snap'}>
+              <EnsureOrganizationIsReady>
+                <ReceiptCapturePage />
+              </EnsureOrganizationIsReady>
+            </Route>
             <Route path="/">
               <EnsureOrganizationIsReady>
                 <Dashboard />

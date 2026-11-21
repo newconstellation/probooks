@@ -35864,6 +35864,11 @@
             "example": "Office supplies and equipment",
             "description": "The description of the expense"
           },
+          "taxTreatment": {
+            "type": "string",
+            "description": "How the expense counts for income tax: deductible, meals_50 or personal.",
+            "nullable": true
+          },
           "paymentAccountId": {
             "type": "number",
             "example": 1,
@@ -36052,6 +36057,17 @@
             "description": "The description of the expense",
             "example": "This is a description"
           },
+          "taxTreatment": {
+            "type": "string",
+            "description": "How the expense counts for income tax: fully deductible, 50% deductible business meals, or personal.",
+            "enum": [
+              "deductible",
+              "meals_50",
+              "personal"
+            ],
+            "nullable": true,
+            "example": "deductible"
+          },
           "exchangeRate": {
             "type": "number",
             "description": "The exchange rate of the expense",
@@ -36144,6 +36160,17 @@
             "type": "string",
             "description": "The description of the expense",
             "example": "This is a description"
+          },
+          "taxTreatment": {
+            "type": "string",
+            "description": "How the expense counts for income tax: fully deductible, 50% deductible business meals, or personal.",
+            "enum": [
+              "deductible",
+              "meals_50",
+              "personal"
+            ],
+            "nullable": true,
+            "example": "deductible"
           },
           "exchangeRate": {
             "type": "number",

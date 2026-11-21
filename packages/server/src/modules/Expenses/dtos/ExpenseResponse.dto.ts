@@ -101,6 +101,14 @@ export class ExpenseResponseDto {
   description?: string;
 
   @ApiProperty({
+    description:
+      'How the expense counts for income tax: deductible, meals_50 or personal.',
+    required: false,
+    nullable: true,
+  })
+  taxTreatment?: string | null;
+
+  @ApiProperty({
     example: 1,
     description: 'The ID of the payment account used for this expense',
   })
