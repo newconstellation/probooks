@@ -15,6 +15,7 @@ import { InventoryAverageCostMethodService } from './InventoryAverageCostMethod.
 import { TenantModelProxy } from '@/modules/System/models/TenantBaseModel';
 import { InjectQueue } from '@nestjs/bullmq';
 import { RedisService } from '@liaoliaots/nestjs-redis';
+import { getEarlierDate } from '../utils';
 
 @Injectable()
 export class InventoryComputeCostService {
@@ -92,11 +93,22 @@ export class InventoryComputeCostService {
    * @param {Date} startingDate
    */
   async scheduleComputeItemCost(itemId: number, startingDate: Date | string) {
-    const debounceKey = `inventory-cost-compute-debounce:${itemId}`;
+    const organizationId = this.clsService.get('organizationId');
+    const userId = this.clsService.get('userId');
+
+    // Items ids are per tenant, so the debounce key must include the
+    // organization or two tenants' jobs for the same item id replace each other.
+    const debounceKey = `inventory-cost-compute-debounce:${organizationId}:${itemId}`;
     const debounceTime = 1000 * 10; // 10 seconds
 
     // Generate a unique job ID or use a custom identifier
     const jobId = `task-${Date.now()}-${Math.random().toString(36).substring(2)}`;
+
+    // The job recomputes cost lots from its starting date onward, so when it
+    // replaces a pending job it must start from the earlier of the two dates.
+    // Otherwise lots between the two dates (e.g. a bill entered before a
+    // later-dated invoice) are never written.
+    let effectiveStartingDate = startingDate;
 
     // Check if there's an existing debounced job
     const existingJobId = await this.redisClient.get(debounceKey);
@@ -108,19 +120,27 @@ export class InventoryComputeCostService {
       const state = await existingJob?.getState();
 
       if (existingJob && ['waiting', 'delayed'].includes(state)) {
+        effectiveStartingDate = getEarlierDate(
+          startingDate,
+          existingJob.data?.startingDate,
+        );
         await existingJob.remove(); // Remove the previous job if it's still waiting
       }
     }
-    const organizationId = this.clsService.get('organizationId');
-    const userId = this.clsService.get('userId');
 
     // Add the new job with a delay (debounce period)
     const _job = await this.computeItemCostProcessor.add(
       ComputeItemCostQueueJob,
-      { itemId, startingDate, jobId, organizationId, userId },
+      {
+        itemId,
+        startingDate: effectiveStartingDate,
+        jobId,
+        organizationId,
+        userId,
+      },
       {
         jobId, // Custom job ID
-        delay: debounceTime, // Delay execution by 1 minute
+        delay: debounceTime, // Delay execution by 10 seconds
       },
     );
     // Store the latest job ID in Redis with an expiration

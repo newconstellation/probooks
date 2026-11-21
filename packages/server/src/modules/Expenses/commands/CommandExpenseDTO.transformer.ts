@@ -8,6 +8,7 @@ import { Expense } from '../models/Expense.model';
 import { assocItemEntriesDefaultIndex } from '@/utils/associate-item-entries-index';
 import { TenancyContext } from '@/modules/Tenancy/TenancyContext.service';
 import { CreateExpenseDto, EditExpenseDto } from '../dtos/Expense.dto';
+import { getReceiptTagTaxTreatment } from '../constants';
 
 @Injectable()
 export class ExpenseDTOTransformer {
@@ -44,6 +45,28 @@ export class ExpenseDTOTransformer {
   };
 
   /**
+   * Derives the tax treatment from the receipt tag when none is given, and
+   * clears the reimbursement links of non-reimbursable expenses.
+   * @param {CreateExpenseDto | EditExpenseDto} expenseDTO
+   */
+  private getTaxAndReimbursementFields(
+    expenseDTO: CreateExpenseDto | EditExpenseDto,
+  ) {
+    const taxTreatment =
+      expenseDTO.taxTreatment ??
+      (expenseDTO.receiptTag
+        ? getReceiptTagTaxTreatment(expenseDTO.receiptTag)
+        : expenseDTO.taxTreatment);
+
+    return {
+      ...(taxTreatment !== undefined ? { taxTreatment } : {}),
+      ...(expenseDTO.reimbursable === false
+        ? { reimburseCustomerId: null, reimburseInvoiceId: null }
+        : {}),
+    };
+  }
+
+  /**
    * Mapping expense DTO to model.
    * @param {IExpenseDTO} expenseDTO
    * @param {ISystemUser} authorizedUser
@@ -62,6 +85,7 @@ export class ExpenseDTOTransformer {
 
     const initialDTO = {
       ...omit(expenseDTO, ['publish', 'attachments']),
+      ...this.getTaxAndReimbursementFields(expenseDTO),
       categories,
       totalAmount,
       landedCostAmount,

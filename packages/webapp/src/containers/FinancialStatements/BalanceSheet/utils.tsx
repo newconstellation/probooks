@@ -27,7 +27,7 @@ type BalanceSheetFormQuery = BalanceSheetTableQuery & {
 export const getDefaultBalanceSheetQuery = (): BalanceSheetFormQuery => ({
   fromDate: moment().startOf('year').format('YYYY-MM-DD'),
   toDate: moment().format('YYYY-MM-DD'),
-  basis: 'cash',
+  basis: 'accrual',
   displayColumnsType: 'total',
   displayColumnsBy: 'month',
   filterByOption: 'without-zero-balance',
@@ -94,7 +94,7 @@ export const useBalanceSheetQuery = () => {
  */
 export const getBalanceSheetHeaderDefaultValues = () => {
   return {
-    basic: 'cash',
+    basis: 'accrual',
     filterByOption: 'without-zero-balance',
     displayColumnsType: 'total',
     fromDate: moment().toDate(),

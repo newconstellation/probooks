@@ -47,11 +47,13 @@ export class EditSaleInvoice {
    * @async
    * @param {Number} saleInvoiceId - Sale invoice id.
    * @param {ISaleInvoice} saleInvoice - Sale invoice DTO object.
+   * @param {Knex.Transaction} trx - Runs the edit inside an outer transaction.
    * @return {Promise<ISaleInvoice>}
    */
   public async editSaleInvoice(
     saleInvoiceId: number,
     saleInvoiceDTO: EditSaleInvoiceDto,
+    trx?: Knex.Transaction,
   ): Promise<SaleInvoice> {
     // Edit sale invoice transaction in UOW envirment.
     return this.uow.withTransaction(async (trx: Knex.Transaction) => {
@@ -98,7 +100,7 @@ export class EditSaleInvoice {
         editEventPayload,
       );
       return saleInvoice;
-    });
+    }, trx);
   }
 
   /**

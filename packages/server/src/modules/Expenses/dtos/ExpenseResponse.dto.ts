@@ -101,6 +101,41 @@ export class ExpenseResponseDto {
   description?: string;
 
   @ApiProperty({
+    description:
+      'How the expense counts for income tax: deductible, meals_50 or personal.',
+    required: false,
+    nullable: true,
+  })
+  taxTreatment?: string | null;
+
+  @ApiProperty({
+    description: 'Quick tag picked when the receipt was captured',
+    required: false,
+    nullable: true,
+  })
+  receiptTag?: string | null;
+
+  @ApiProperty({
+    description: 'Whether a customer or job will pay this expense back',
+    required: false,
+  })
+  reimbursable?: boolean;
+
+  @ApiProperty({
+    description: 'The customer or job that will reimburse the expense',
+    required: false,
+    nullable: true,
+  })
+  reimburseCustomerId?: number | null;
+
+  @ApiProperty({
+    description: 'The invoice the expense was billed on',
+    required: false,
+    nullable: true,
+  })
+  reimburseInvoiceId?: number | null;
+
+  @ApiProperty({
     example: 1,
     description: 'The ID of the payment account used for this expense',
   })

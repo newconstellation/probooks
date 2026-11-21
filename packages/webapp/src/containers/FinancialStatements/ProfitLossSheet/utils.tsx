@@ -12,7 +12,7 @@ interface FormSetFieldValue {
 }
 
 export const getDefaultProfitLossQuery = () => ({
-  basis: 'cash',
+  basis: 'accrual',
   fromDate: moment().startOf('year').format('YYYY-MM-DD'),
   toDate: moment().format('YYYY-MM-DD'),
   displayColumnsType: 'total',

@@ -8,7 +8,11 @@ import { ImportableModel } from '@/modules/Import/decorators/Import.decorator';
 import { InjectModelMeta } from '@/modules/Tenancy/TenancyModels/decorators/InjectModelMeta.decorator';
 import { ExpenseMeta } from './Expense.meta';
 import { InjectModelDefaultViews } from '@/modules/Views/decorators/InjectModelDefaultViews.decorator';
-import { ExpenseDefaultViews } from '../constants';
+import {
+  ExpenseDefaultViews,
+  ExpenseReceiptTag,
+  ExpenseTaxTreatment,
+} from '../constants';
 import { InjectAttachable } from '@/modules/Attachments/decorators/InjectAttachable.decorator';
 
 @InjectAttachable()
@@ -21,6 +25,11 @@ export class Expense extends TenantBaseModel {
   currencyCode!: string;
   exchangeRate!: number;
   description?: string;
+  taxTreatment?: ExpenseTaxTreatment | null;
+  receiptTag?: ExpenseReceiptTag | null;
+  reimbursable?: boolean;
+  reimburseCustomerId?: number | null;
+  reimburseInvoiceId?: number | null;
   paymentAccountId!: number;
   peyeeId!: number;
   referenceNo!: string;

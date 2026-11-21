@@ -14,7 +14,7 @@ import { transformToForm } from '@/utils';
 export const getDefaultSalesTaxLiablitySummaryQuery = () => ({
   fromDate: moment().startOf('month').format('YYYY-MM-DD'),
   toDate: moment().format('YYYY-MM-DD'),
-  basis: 'cash',
+  basis: 'accrual',
   numberFormat: {},
 });
 
@@ -58,7 +58,7 @@ export const useSalesTaxLiabilitySummaryQuery = () => {
  */
 export const getSalesTaxLiabilitySummaryDefaultQuery = () => {
   return {
-    basic: 'cash',
+    basis: 'accrual',
     fromDate: moment().toDate(),
     toDate: moment().toDate(),
   };
