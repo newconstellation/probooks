@@ -75,3 +75,16 @@ export function transformItemEntriesToInventory(transaction: {
     },
   );
 }
+
+/**
+ * Returns the earlier of two dates, ignoring a missing or invalid second date.
+ */
+export function getEarlierDate(
+  date: Date | string,
+  otherDate?: Date | string | null,
+): Date | string {
+  if (!otherDate) return date;
+  const other = new Date(otherDate);
+  if (Number.isNaN(other.getTime())) return date;
+  return other.getTime() < new Date(date).getTime() ? otherDate : date;
+}
