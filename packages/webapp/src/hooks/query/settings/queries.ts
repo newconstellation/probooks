@@ -1,0 +1,437 @@
+import {
+  camelToSnakeCase,
+  fetchSettingsGrouped,
+  fetchSettingsInvoices,
+  fetchSettingsEstimates,
+  fetchSettingsPaymentReceives,
+  fetchSettingsReceipts,
+  fetchSettingsManualJournals,
+  fetchSettingsItems,
+  fetchSettingsItemCategories,
+  fetchSettingCashFlow,
+  fetchSettingsCreditNotes,
+  fetchSettingsVendorCredits,
+  fetchSettingsWarehouseTransfers,
+  fetchSettingsBills,
+  fetchSettingsBillPayments,
+  fetchSettingsOrganization,
+  fetchSettingsExpenses,
+  fetchSettingsAccounts,
+  fetchSettingsCustomers,
+  fetchSettingsVendors,
+  fetchSettingsCashflowTransactions,
+  fetchSettingSMSNotifications,
+  fetchSettingSMSNotification,
+  editSettingSMSNotification,
+  editSettings,
+  snakeToCamelCase,
+} from '@bigcapital/sdk-ts';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  UseMutationOptions,
+  UseQueryOptions,
+  QueryClient,
+  QueryKey,
+} from '@tanstack/react-query';
+import { useApiFetcher } from '../../useRequest';
+import { settingsGroupKeys, settingsKeys } from './query-keys';
+import type {
+  AllSettings,
+  EditSmsNotificationValues,
+  SaveSettingsBody,
+  SettingsGroup,
+  SmsNotificationSetting,
+  SmsNotificationSettingsListResponse,
+} from '@bigcapital/sdk-ts';
+
+interface SettingOption {
+  group: string;
+  key: string;
+  value: unknown;
+}
+
+interface SaveSettingsMutationContext {
+  previousQueries: Array<[QueryKey, unknown]>;
+}
+
+/**
+ * Retrieves the settings options from the mutation payload.
+ */
+const getSettingsOptions = (values: SaveSettingsBody): SettingOption[] => {
+  const options = (values as { options?: unknown }).options;
+  return Array.isArray(options) ? (options as SettingOption[]) : [];
+};
+
+/**
+ * Normalizes a settings option to the snake_case names expected by the API.
+ */
+const normalizeSettingsOption = ({
+  group,
+  key,
+  value,
+}: SettingOption): SettingOption => ({
+  group: camelToSnakeCase(group),
+  key: camelToSnakeCase(key),
+  value,
+});
+
+/**
+ * Normalizes the mutation payload so callers can use camelCase names while the
+ * API receives snake_case ones.
+ */
+const normalizeSettingsValues = (
+  values: SaveSettingsBody,
+): SaveSettingsBody => {
+  const options = getSettingsOptions(values);
+
+  return options.length
+    ? { ...values, options: options.map(normalizeSettingsOption) }
+    : values;
+};
+
+/**
+ * Writes the given settings options into the cached settings queries so the UI
+ * reflects the change immediately, before the request is confirmed.
+ */
+const applySettingsOptionsToCache = (
+  queryClient: QueryClient,
+  options: SettingOption[],
+) => {
+  if (!options.length) {
+    return;
+  }
+  // Grouped settings query (`useSettings`).
+  queryClient.setQueryData<AllSettings>(settingsKeys.all(), (oldData) => {
+    if (!oldData) {
+      return oldData;
+    }
+    const nextData = { ...oldData };
+
+    options.forEach(({ group, key, value }) => {
+      const camelGroup = snakeToCamelCase(group);
+      const camelKey = snakeToCamelCase(key);
+
+      nextData[camelGroup] = {
+        ...(nextData[camelGroup] ?? {}),
+        [camelKey]: value,
+      };
+    });
+    return nextData;
+  });
+
+  // Dedicated group queries (`useSettingsInvoices`, `useSettingsItems`, ...).
+  options.forEach(({ group, key, value }) => {
+    const getGroupQueryKey = settingsGroupKeys[group];
+    if (!getGroupQueryKey) {
+      return;
+    }
+    queryClient.setQueryData<SettingsGroup>(getGroupQueryKey(), (oldData) =>
+      oldData ? { ...oldData, [snakeToCamelCase(key)]: value } : oldData,
+    );
+  });
+};
+
+export function useSaveSettings(
+  props?: UseMutationOptions<
+    void,
+    Error,
+    SaveSettingsBody,
+    SaveSettingsMutationContext
+  >,
+) {
+  const queryClient = useQueryClient();
+  const fetcher = useApiFetcher();
+
+  return useMutation({
+    ...props,
+    mutationFn: (values: SaveSettingsBody) =>
+      editSettings(fetcher, normalizeSettingsValues(values)),
+    onMutate: async (values: SaveSettingsBody, context) => {
+      await queryClient.cancelQueries({ queryKey: settingsKeys.all() });
+
+      const previousQueries = queryClient.getQueriesData({
+        queryKey: settingsKeys.all(),
+      });
+      applySettingsOptionsToCache(
+        queryClient,
+        getSettingsOptions(values).map(normalizeSettingsOption),
+      );
+
+      await props?.onMutate?.(values, context);
+
+      return { previousQueries };
+    },
+    onError: (error, values, _onMutateResult, context) => {
+      _onMutateResult?.previousQueries.forEach(([queryKey, queryData]) => {
+        queryClient.setQueryData(queryKey, queryData);
+      });
+      props?.onError?.(error, values, _onMutateResult, context);
+    },
+    onSettled: (data, error, values, _onMutateResult, context) => {
+      queryClient.invalidateQueries({ queryKey: settingsKeys.all() });
+      props?.onSettled?.(data, error, values, _onMutateResult, context);
+    },
+  });
+}
+
+export function useSettings(
+  props?: Omit<UseQueryOptions<AllSettings>, 'queryKey' | 'queryFn'>,
+) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.all(),
+    queryFn: () => fetchSettingsGrouped(fetcher),
+  });
+}
+
+type GroupQueryOptions = Omit<
+  UseQueryOptions<SettingsGroup>,
+  'queryKey' | 'queryFn'
+>;
+
+export function useSettingsInvoices(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.invoices(),
+    queryFn: () => fetchSettingsInvoices(fetcher),
+  });
+}
+
+export function useSettingsEstimates(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.estimates(),
+    queryFn: () => fetchSettingsEstimates(fetcher),
+  });
+}
+
+export function useSettingsPaymentReceives(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.paymentReceives(),
+    queryFn: () => fetchSettingsPaymentReceives(fetcher),
+  });
+}
+
+export function useSettingsReceipts(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.receipts(),
+    queryFn: () => fetchSettingsReceipts(fetcher),
+  });
+}
+
+export function useSettingsManualJournals(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.manualJournals(),
+    queryFn: () => fetchSettingsManualJournals(fetcher),
+  });
+}
+
+export function useSettingsItems(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.items(),
+    queryFn: () => fetchSettingsItems(fetcher),
+  });
+}
+
+export function useSettingsItemCategories(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.itemCategories(),
+    queryFn: () => fetchSettingsItemCategories(fetcher),
+  });
+}
+
+export function useSettingCashFlow(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.cashflow(),
+    queryFn: () => fetchSettingCashFlow(fetcher),
+  });
+}
+
+export function useSettingsCreditNotes(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.creditNotes(),
+    queryFn: () => fetchSettingsCreditNotes(fetcher),
+  });
+}
+
+export function useSettingsVendorCredits(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.vendorCredits(),
+    queryFn: () => fetchSettingsVendorCredits(fetcher),
+  });
+}
+
+export function useSettingsWarehouseTransfers(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.warehouseTransfers(),
+    queryFn: () => fetchSettingsWarehouseTransfers(fetcher),
+  });
+}
+
+export function useSettingsBills(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.bills(),
+    queryFn: () => fetchSettingsBills(fetcher),
+  });
+}
+
+export function useSettingsBillPayments(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.billPayments(),
+    queryFn: () => fetchSettingsBillPayments(fetcher),
+  });
+}
+
+export function useSettingsOrganization(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.organization(),
+    queryFn: () => fetchSettingsOrganization(fetcher),
+  });
+}
+
+export type AccountingBasis = 'accrual' | 'cash';
+
+/**
+ * The current organization's accounting basis (defaults to accrual).
+ */
+export function useCurrentOrganizationAccountingBasis(): AccountingBasis {
+  const { data } = useSettingsOrganization();
+  return data?.accountingBasis === 'cash' ? 'cash' : 'accrual';
+}
+
+export function useSettingsExpenses(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.expenses(),
+    queryFn: () => fetchSettingsExpenses(fetcher),
+  });
+}
+
+export function useSettingsAccounts(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.accounts(),
+    queryFn: () => fetchSettingsAccounts(fetcher),
+  });
+}
+
+export function useSettingsCustomers(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.customers(),
+    queryFn: () => fetchSettingsCustomers(fetcher),
+  });
+}
+
+export function useSettingsVendors(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.vendors(),
+    queryFn: () => fetchSettingsVendors(fetcher),
+  });
+}
+
+export function useSettingsCashflowTransactions(props?: GroupQueryOptions) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.cashflowTransactions(),
+    queryFn: () => fetchSettingsCashflowTransactions(fetcher),
+  });
+}
+
+export function useSettingSMSNotifications(
+  props?: Omit<
+    UseQueryOptions<SmsNotificationSettingsListResponse, Error>,
+    'queryKey' | 'queryFn'
+  >,
+) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.smsNotifications(),
+    queryFn: () => fetchSettingSMSNotifications(fetcher),
+  });
+}
+
+export function useSettingSMSNotification(
+  key: string,
+  props?: Omit<
+    UseQueryOptions<SmsNotificationSetting, Error>,
+    'queryKey' | 'queryFn'
+  >,
+) {
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+
+  return useQuery({
+    ...props,
+    queryKey: settingsKeys.smsNotification(key),
+    queryFn: () => fetchSettingSMSNotification(fetcher, key),
+    enabled: !!key && (props?.enabled ?? true),
+  });
+}
+
+export function useSettingEditSMSNotification(
+  props?: UseMutationOptions<
+    SmsNotificationSetting,
+    Error,
+    { key: string; values: EditSmsNotificationValues }
+  >,
+) {
+  const queryClient = useQueryClient();
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
+
+  return useMutation({
+    ...props,
+    mutationFn: ({
+      key,
+      values,
+    }: {
+      key: string;
+      values: EditSmsNotificationValues;
+    }) => editSettingSMSNotification(fetcher, key, values),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: settingsKeys.smsNotifications(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: settingsKeys.smsNotification(variables.key),
+      });
+    },
+  });
+}
