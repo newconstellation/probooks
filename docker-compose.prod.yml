@@ -1,0 +1,199 @@
+# This is a production version of the Bigcapital docker-compose.yml file.
+#
+# Environment strategy:
+# - `.env` (next to this file) is the single source of truth. Services that
+#   consume application settings load it via `env_file`, so adding a new
+#   variable only requires documenting it in `.env.example` — no changes here.
+# - `environment` only contains values that must differ inside the compose
+#   network (service hostnames/ports), required-secret guards, and defaults
+#   that cannot be expressed in the application config.
+# - Infra-only values (DB_ROOT_PASSWORD, PUBLIC_PROXY_*, GARAGE_*, etc.) are
+#   read by their own services through `${...}` interpolation.
+
+version: '3.3'
+
+services:
+  proxy:
+    image: envoyproxy/envoy:v1.30-latest
+    depends_on:
+      - server
+      - webapp
+    ports:
+      - '${PUBLIC_PROXY_PORT:-80}:80'
+      - '${PUBLIC_PROXY_SSL_PORT:-443}:443'
+    tty: true
+    volumes:
+      - ./docker/envoy/envoy.yaml:/etc/envoy/envoy.yaml
+    restart: on-failure
+    networks:
+      - bigcapital_network
+
+  webapp:
+    container_name: bigcapital-webapp
+    image: bigcapitalhq/webapp:latest
+    restart: on-failure
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - bigcapital_network
+
+  server:
+    container_name: bigcapital-server
+    image: bigcapitalhq/server:latest
+    expose:
+      - '3000'
+    links:
+      - mysql
+      - redis
+    depends_on:
+      - mysql
+      - redis
+      - garage
+    restart: on-failure
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - bigcapital_network
+    env_file:
+      - .env
+    environment:
+      # Service discovery: always override `.env` so the server talks to the
+      # compose network instead of localhost.
+      - DB_HOST=mysql
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - QUEUE_HOST=redis
+      - QUEUE_PORT=6379
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=8123
+
+      # Required secrets: fail fast instead of booting with a broken config.
+      - 'APP_JWT_SECRET=${APP_JWT_SECRET:?APP_JWT_SECRET is required in .env - generate one with openssl rand -base64 48}'
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:?CLICKHOUSE_PASSWORD is required in .env - generate one with openssl rand -base64 32}
+
+      # Defaults for vars parsed with `??` in the server config, where an empty
+      # string would break parsing (see common/config/throttle.ts).
+      - THROTTLE_GLOBAL_TTL=${THROTTLE_GLOBAL_TTL:-60000}
+      - THROTTLE_GLOBAL_LIMIT=${THROTTLE_GLOBAL_LIMIT:-300}
+      - THROTTLE_AUTH_TTL=${THROTTLE_AUTH_TTL:-60000}
+      - THROTTLE_AUTH_LIMIT=${THROTTLE_AUTH_LIMIT:-30}
+
+  database_migration:
+    container_name: bigcapital-database-migration
+    build:
+      context: ./
+      dockerfile: docker/migration/Dockerfile
+    env_file:
+      - .env
+    environment:
+      # Migrations run inside the compose network, not on the host.
+      - DB_HOST=mysql
+    depends_on:
+      - mysql
+    networks:
+      - bigcapital_network
+
+  mysql:
+    container_name: bigcapital-mysql
+    restart: on-failure
+    build:
+      context: ./docker/mariadb
+    environment:
+      - MYSQL_DATABASE=${SYSTEM_DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+    volumes:
+      - mysql:/var/lib/mysql
+    expose:
+      - '3306'
+    networks:
+      - bigcapital_network
+
+  redis:
+    container_name: bigcapital-redis
+    restart: on-failure
+    build:
+      context: ./docker/redis
+    expose:
+      - '6379'
+    volumes:
+      - redis:/data
+    networks:
+      - bigcapital_network
+
+  gotenberg:
+    image: gotenberg/gotenberg:7
+    expose:
+      - '9000'
+    networks:
+      - bigcapital_network
+
+  garage:
+    container_name: bigcapital-garage
+    image: dxflrs/garage:v1.3.1
+    restart: on-failure
+    environment:
+      - GARAGE_CONFIG_FILE=/etc/garage.toml
+      - GARAGE_RPC_SECRET=${GARAGE_RPC_SECRET}
+      - GARAGE_ADMIN_TOKEN=${GARAGE_ADMIN_TOKEN}
+    volumes:
+      - ./docker/garage/garage.toml:/etc/garage.toml
+      - ./docker/garage/setup.sh:/garage-setup/setup.sh
+      - garage:/var/lib/garage
+    expose:
+      - '3900'
+      - '3903'
+    networks:
+      - bigcapital_network
+
+  clickhouse:
+    container_name: bigcapital-clickhouse
+    image: clickhouse/clickhouse-server:24.8
+    restart: on-failure
+    environment:
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-default}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:?CLICKHOUSE_PASSWORD is required in .env - generate one with openssl rand -base64 32}
+      - CLICKHOUSE_DB=${CLICKHOUSE_DATABASE:-bigcapital_analytics}
+    expose:
+      - '8123'
+    volumes:
+      - clickhouse:/var/lib/clickhouse
+    networks:
+      - bigcapital_network
+
+  # Auto-updates the containers labelled "com.centurylinklabs.watchtower.enable=true"
+  # (webapp and server) by polling the registry for newer :latest images.
+  # Everything else (mysql, redis, gotenberg, garage, clickhouse, proxy) is untouched.
+  auto-update:
+    container_name: bigcapital-auto-update
+    image: containrrr/watchtower:1.7.1
+    restart: on-failure
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: --label-enable --cleanup --interval ${AUTO_UPDATE_INTERVAL:-3600}
+    networks:
+      - bigcapital_network
+
+# Volumes
+volumes:
+  mysql:
+    name: bigcapital_prod_mysql
+    driver: local
+
+  redis:
+    name: bigcapital_prod_redis
+    driver: local
+
+  garage:
+    name: bigcapital_prod_garage
+    driver: local
+
+  clickhouse:
+    name: bigcapital_prod_clickhouse
+    driver: local
+
+# Networks
+networks:
+  bigcapital_network:
+    driver: bridge
