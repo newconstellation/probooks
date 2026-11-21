@@ -10411,6 +10411,14 @@ export interface components {
             description?: string;
             /** @description How the expense counts for income tax: deductible, meals_50 or personal. */
             taxTreatment?: string | null;
+            /** @description Quick tag picked when the receipt was captured */
+            receiptTag?: string | null;
+            /** @description Whether a customer or job will pay this expense back */
+            reimbursable?: boolean;
+            /** @description The customer or job that will reimburse the expense */
+            reimburseCustomerId?: number | null;
+            /** @description The invoice the expense was billed on */
+            reimburseInvoiceId?: number | null;
             /**
              * @description The ID of the payment account used for this expense
              * @example 1
@@ -10568,6 +10576,27 @@ export interface components {
              */
             taxTreatment?: "deductible" | "meals_50" | "personal" | null;
             /**
+             * @description Quick tag picked when the receipt was captured (meals, parking, rideshare...). Sets the tax treatment when none is given.
+             * @example parking
+             * @enum {string|null}
+             */
+            receiptTag?: "meals" | "baggage" | "airfare" | "lodging" | "parking" | "rideshare" | "fuel" | "office_supplies" | "phone_internet" | "shipping" | "personal" | "other" | null;
+            /**
+             * @description Whether a customer or job will pay this expense back
+             * @example false
+             */
+            reimbursable?: boolean;
+            /**
+             * @description The customer or job that will reimburse the expense
+             * @example 1
+             */
+            reimburseCustomerId?: number | null;
+            /**
+             * @description The invoice to bill the expense on. The expense is added as a line item and its receipt is attached to the invoice.
+             * @example 1
+             */
+            reimburseInvoiceId?: number | null;
+            /**
              * @description The exchange rate of the expense
              * @example 1
              */
@@ -10644,6 +10673,27 @@ export interface components {
              * @enum {string|null}
              */
             taxTreatment?: "deductible" | "meals_50" | "personal" | null;
+            /**
+             * @description Quick tag picked when the receipt was captured (meals, parking, rideshare...). Sets the tax treatment when none is given.
+             * @example parking
+             * @enum {string|null}
+             */
+            receiptTag?: "meals" | "baggage" | "airfare" | "lodging" | "parking" | "rideshare" | "fuel" | "office_supplies" | "phone_internet" | "shipping" | "personal" | "other" | null;
+            /**
+             * @description Whether a customer or job will pay this expense back
+             * @example false
+             */
+            reimbursable?: boolean;
+            /**
+             * @description The customer or job that will reimburse the expense
+             * @example 1
+             */
+            reimburseCustomerId?: number | null;
+            /**
+             * @description The invoice to bill the expense on. The expense is added as a line item and its receipt is attached to the invoice.
+             * @example 1
+             */
+            reimburseInvoiceId?: number | null;
             /**
              * @description The exchange rate of the expense
              * @example 1

@@ -3,33 +3,184 @@ import { ACCOUNT_TYPE } from '@/constants/accountTypes';
 
 export type TaxTreatment = 'deductible' | 'meals_50' | 'personal';
 
-export const TAX_TREATMENT_OPTIONS: Array<{
-  value: TaxTreatment;
-  label: string;
-  hint: string;
-}> = [
-  {
-    value: 'deductible',
-    label: 'Deductible',
-    hint: 'A normal business expense.',
-  },
-  {
-    value: 'meals_50',
-    label: '50% meal',
-    hint: 'Business meals usually count at 50%.',
-  },
-  {
-    value: 'personal',
-    label: 'Personal',
-    hint: 'Paid with business money for something personal.',
-  },
-];
+const TAX_TREATMENT_LABELS: Record<TaxTreatment, string> = {
+  deductible: 'Deductible',
+  meals_50: '50% meal',
+  personal: 'Personal',
+};
 
 /**
  * Label for an expense's tax tag, or a dash when it has none.
  */
 export function getTaxTreatmentLabel(value?: string | null): string {
-  return TAX_TREATMENT_OPTIONS.find((o) => o.value === value)?.label || '-';
+  return TAX_TREATMENT_LABELS[value as TaxTreatment] || '-';
+}
+
+export type ReceiptTag =
+  | 'meals'
+  | 'baggage'
+  | 'airfare'
+  | 'lodging'
+  | 'parking'
+  | 'rideshare'
+  | 'fuel'
+  | 'office_supplies'
+  | 'phone_internet'
+  | 'shipping'
+  | 'personal'
+  | 'other';
+
+export interface ReceiptTagOption {
+  value: ReceiptTag;
+  label: string;
+  icon: string;
+  taxTreatment: TaxTreatment;
+  /** Expense account the tag files into; created the first time if missing. */
+  accountName?: string;
+  /** Matches an existing expense account to use instead of creating one. */
+  accountMatch?: RegExp;
+}
+
+/**
+ * Quick answers for "what was this receipt for?". "Other deductible" is the
+ * catch-all and keeps whatever category is picked.
+ */
+export const RECEIPT_TAG_OPTIONS: ReceiptTagOption[] = [
+  {
+    value: 'meals',
+    label: 'Meal (50%)',
+    icon: 'glass',
+    taxTreatment: 'meals_50',
+    accountName: 'Meals',
+    accountMatch: /meal|dining|entertainment/i,
+  },
+  {
+    value: 'rideshare',
+    label: 'Uber / Lyft / Taxi',
+    icon: 'taxi',
+    taxTreatment: 'deductible',
+    accountName: 'Travel',
+    accountMatch: /travel/i,
+  },
+  {
+    value: 'parking',
+    label: 'Parking & tolls',
+    icon: 'drive-time',
+    taxTreatment: 'deductible',
+    accountName: 'Parking & Tolls',
+    accountMatch: /parking|toll/i,
+  },
+  {
+    value: 'baggage',
+    label: 'Baggage fee',
+    icon: 'briefcase',
+    taxTreatment: 'deductible',
+    accountName: 'Travel',
+    accountMatch: /travel/i,
+  },
+  {
+    value: 'airfare',
+    label: 'Airfare',
+    icon: 'airplane',
+    taxTreatment: 'deductible',
+    accountName: 'Travel',
+    accountMatch: /travel/i,
+  },
+  {
+    value: 'lodging',
+    label: 'Hotel',
+    icon: 'office',
+    taxTreatment: 'deductible',
+    accountName: 'Travel',
+    accountMatch: /travel|lodging|hotel/i,
+  },
+  {
+    value: 'fuel',
+    label: 'Gas / fuel',
+    icon: 'oil-field',
+    taxTreatment: 'deductible',
+    accountName: 'Car & Truck',
+    accountMatch: /car|truck|vehicle|auto|fuel|gas/i,
+  },
+  {
+    value: 'office_supplies',
+    label: 'Office supplies',
+    icon: 'paperclip',
+    taxTreatment: 'deductible',
+    accountName: 'Office Supplies',
+    accountMatch: /office/i,
+  },
+  {
+    value: 'phone_internet',
+    label: 'Phone & internet',
+    icon: 'mobile-phone',
+    taxTreatment: 'deductible',
+    accountName: 'Phone & Internet',
+    accountMatch: /phone|internet|telephone|utilit/i,
+  },
+  {
+    value: 'shipping',
+    label: 'Shipping & postage',
+    icon: 'box',
+    taxTreatment: 'deductible',
+    accountName: 'Shipping & Postage',
+    accountMatch: /shipping|postage|freight/i,
+  },
+  {
+    value: 'personal',
+    label: 'Personal',
+    icon: 'person',
+    taxTreatment: 'personal',
+  },
+  {
+    value: 'other',
+    label: 'Other deductible',
+    icon: 'tick',
+    taxTreatment: 'deductible',
+  },
+];
+
+export function getReceiptTagOption(value?: string | null) {
+  return RECEIPT_TAG_OPTIONS.find((o) => o.value === value);
+}
+
+/**
+ * Label for an expense's quick tag, or a dash when it has none.
+ */
+export function getReceiptTagLabel(value?: string | null): string {
+  return getReceiptTagOption(value)?.label || '-';
+}
+
+export const TAX_TREATMENT_HINTS: Record<TaxTreatment, string> = {
+  deductible: 'Counts as a normal business expense.',
+  meals_50: 'Business meals usually count at 50% for taxes.',
+  personal: 'Not deductible. Paid with business money for something personal.',
+};
+
+/** Category value for an account that will be created when the receipt is saved. */
+export const NEW_CATEGORY_PREFIX = 'new:';
+
+export function isNewCategory(value: string) {
+  return value.startsWith(NEW_CATEGORY_PREFIX);
+}
+
+/**
+ * Picks the category for a quick tag: an existing account that matches, the
+ * name of one to create, or the current pick for tags without a category.
+ */
+export function getTagCategory(
+  tag: ReceiptTagOption,
+  categories: CaptureAccount[],
+  currentCategory: string,
+): string {
+  if (!tag.accountName) {
+    return isNewCategory(currentCategory) ? '' : currentCategory;
+  }
+  const exact = categories.find(
+    (a) => a.name.toLowerCase() === tag.accountName!.toLowerCase(),
+  );
+  const match = exact || categories.find((a) => tag.accountMatch?.test(a.name));
+  return match ? String(match.id) : `${NEW_CATEGORY_PREFIX}${tag.accountName}`;
 }
 
 export interface CaptureAccount {
@@ -85,7 +236,10 @@ export interface ReceiptCaptureValues {
   description: string;
   categoryAccountId: string;
   paidFromAccountId: string;
-  taxTreatment: TaxTreatment;
+  receiptTag: ReceiptTag;
+  reimbursable: boolean;
+  reimburseCustomerId: string;
+  reimburseInvoiceId: string;
 }
 
 export function todayISO() {
@@ -104,6 +258,8 @@ export function validateReceipt(
   if (!values.date) return 'Pick the receipt date.';
   if (!values.categoryAccountId) return 'Pick a category.';
   if (!values.paidFromAccountId) return 'Pick what you paid with.';
+  if (values.reimbursable && !values.reimburseCustomerId)
+    return 'Pick who will pay you back.';
   return null;
 }
 
@@ -113,6 +269,7 @@ export function validateReceipt(
 export function buildExpenseRequest(
   values: ReceiptCaptureValues,
   attachmentKey: string,
+  categoryAccountId: number = Number(values.categoryAccountId),
 ) {
   const amount = parseAmount(values.amount) as number;
   const description = values.description.trim() || 'Receipt';
@@ -123,11 +280,22 @@ export function buildExpenseRequest(
     description,
     referenceNo: '',
     publish: true,
-    taxTreatment: values.taxTreatment,
+    receiptTag: values.receiptTag,
+    taxTreatment:
+      getReceiptTagOption(values.receiptTag)?.taxTreatment || 'deductible',
+    reimbursable: values.reimbursable,
+    ...(values.reimbursable
+      ? {
+          reimburseCustomerId: Number(values.reimburseCustomerId),
+          ...(values.reimburseInvoiceId
+            ? { reimburseInvoiceId: Number(values.reimburseInvoiceId) }
+            : {}),
+        }
+      : {}),
     categories: [
       {
         index: 1,
-        expenseAccountId: Number(values.categoryAccountId),
+        expenseAccountId: categoryAccountId,
         amount,
         description,
       },
@@ -149,6 +317,39 @@ export function loadLastUsed(organizationId?: string | null) {
   } catch {
     return {};
   }
+}
+
+export interface ReimburseInvoice {
+  id: number;
+  invoiceNo?: string;
+  customerId: number;
+  invoiceDate?: string;
+  dueAmount?: number;
+  totalFormatted?: string;
+  isDelivered?: boolean;
+  isFullyPaid?: boolean;
+  isWrittenoff?: boolean;
+}
+
+/**
+ * Invoices a reimbursable receipt can be added to: the customer's invoices
+ * that are not paid in full or written off, newest first.
+ */
+export function getOpenInvoicesForCustomer(
+  invoices: ReimburseInvoice[] = [],
+  customerId: string,
+): ReimburseInvoice[] {
+  if (!customerId) return [];
+  return invoices
+    .filter(
+      (inv) =>
+        String(inv.customerId) === customerId &&
+        !inv.isFullyPaid &&
+        !inv.isWrittenoff,
+    )
+    .sort((a, b) =>
+      String(b.invoiceDate || '').localeCompare(String(a.invoiceDate || '')),
+    );
 }
 
 export function saveLastUsed(

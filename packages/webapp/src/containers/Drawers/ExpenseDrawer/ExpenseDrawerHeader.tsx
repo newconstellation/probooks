@@ -13,13 +13,52 @@ import {
   DetailsMenu,
   ExchangeRateDetailItem,
 } from '@/components';
-import { getTaxTreatmentLabel } from '@/containers/ReceiptCapture/utils';
+import {
+  getReceiptTagLabel,
+  getTaxTreatmentLabel,
+} from '@/containers/ReceiptCapture/utils';
+import { useCustomer } from '@/hooks/query/customers';
+import { useInvoice } from '@/hooks/query/invoices';
+
+interface ExpenseReceiptFields {
+  taxTreatment?: string | null;
+  receiptTag?: string | null;
+  reimbursable?: boolean;
+  reimburseCustomerId?: number | null;
+  reimburseInvoiceId?: number | null;
+}
+
+/**
+ * Who pays the expense back, and the invoice it was billed on.
+ */
+function ReimbursementDetail({ expense }: { expense: ExpenseReceiptFields }) {
+  const { data: customer } = useCustomer(expense.reimburseCustomerId, {
+    enabled: !!expense.reimburseCustomerId,
+  });
+  const { data: invoice } = useInvoice(expense.reimburseInvoiceId, {
+    enabled: !!expense.reimburseInvoiceId,
+  });
+  const customerName = (customer as { displayName?: string })?.displayName;
+  const invoiceNo = (invoice as { invoiceNo?: string })?.invoiceNo;
+
+  if (!expense.reimbursable) return <>No</>;
+  if (expense.reimburseInvoiceId) {
+    return (
+      <>
+        {customerName ? `${customerName}, ` : ''}on invoice{' '}
+        {invoiceNo || expense.reimburseInvoiceId}
+      </>
+    );
+  }
+  return <>{customerName ? `${customerName}, ` : ''}not invoiced yet</>;
+}
 
 /**
  * Expense drawer content.
  */
 export function ExpenseDrawerHeader() {
   const { expense } = useExpenseDrawerContext();
+  const receiptFields = (expense || {}) as ExpenseReceiptFields;
 
   return (
     <CommercialDocHeader>
@@ -46,10 +85,16 @@ export function ExpenseDrawerHeader() {
               {defaultTo(expense?.referenceNo, '-')}
             </DetailItem>
 
+            <DetailItem name={'receipt-tag'} label={'What it was for'}>
+              {getReceiptTagLabel(receiptFields.receiptTag)}
+            </DetailItem>
+
             <DetailItem name={'tax-treatment'} label={'For taxes'}>
-              {getTaxTreatmentLabel(
-                (expense as { taxTreatment?: string | null })?.taxTreatment,
-              )}
+              {getTaxTreatmentLabel(receiptFields.taxTreatment)}
+            </DetailItem>
+
+            <DetailItem name={'reimbursable'} label={'Bill back'}>
+              <ReimbursementDetail expense={receiptFields} />
             </DetailItem>
 
             <ExchangeRateDetailItem

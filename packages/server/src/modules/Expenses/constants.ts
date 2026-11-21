@@ -98,3 +98,37 @@ export enum ExpenseTaxTreatment {
 }
 
 export const EXPENSE_TAX_TREATMENTS = Object.values(ExpenseTaxTreatment);
+
+/**
+ * Quick tags picked when a receipt is snapped from a phone. Each tag sets the
+ * tax treatment and suggests an expense category.
+ */
+export enum ExpenseReceiptTag {
+  Meals = 'meals',
+  Baggage = 'baggage',
+  Airfare = 'airfare',
+  Lodging = 'lodging',
+  Parking = 'parking',
+  Rideshare = 'rideshare',
+  Fuel = 'fuel',
+  OfficeSupplies = 'office_supplies',
+  PhoneInternet = 'phone_internet',
+  Shipping = 'shipping',
+  Personal = 'personal',
+  Other = 'other',
+}
+
+export const EXPENSE_RECEIPT_TAGS = Object.values(ExpenseReceiptTag);
+
+/**
+ * Retrieves the tax treatment implied by the given receipt tag.
+ * @param {ExpenseReceiptTag} tag - Receipt tag.
+ * @returns {ExpenseTaxTreatment}
+ */
+export function getReceiptTagTaxTreatment(
+  tag: ExpenseReceiptTag,
+): ExpenseTaxTreatment {
+  if (tag === ExpenseReceiptTag.Meals) return ExpenseTaxTreatment.Meals50;
+  if (tag === ExpenseReceiptTag.Personal) return ExpenseTaxTreatment.Personal;
+  return ExpenseTaxTreatment.Deductible;
+}

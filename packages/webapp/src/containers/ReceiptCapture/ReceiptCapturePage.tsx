@@ -1,3 +1,4 @@
+import { fetchAccounts } from '@bigcapital/sdk-ts';
 import {
   Button,
   Callout,
@@ -7,6 +8,7 @@ import {
   InputGroup,
   Intent,
   Spinner,
+  Switch,
 } from '@blueprintjs/core';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -14,26 +16,38 @@ import styled, { createGlobalStyle } from 'styled-components';
 import {
   buildExpenseRequest,
   CaptureAccount,
+  getOpenInvoicesForCustomer,
+  getReceiptTagOption,
+  getTagCategory,
   groupCaptureAccounts,
+  isNewCategory,
   loadLastUsed,
+  NEW_CATEGORY_PREFIX,
   parseAmount,
+  RECEIPT_TAG_OPTIONS,
   ReceiptCaptureValues,
+  ReimburseInvoice,
   saveLastUsed,
-  TAX_TREATMENT_OPTIONS,
+  TAX_TREATMENT_HINTS,
   todayISO,
   validateReceipt,
 } from './utils';
 import { useWorkspaces } from '@/ee/workspaces/hooks/query';
-import { useAccounts } from '@/hooks/query/accounts';
+import { useAccounts, useCreateAccount } from '@/hooks/query/accounts';
 import { useUploadAttachments } from '@/hooks/query/attachments';
+import { useCustomers } from '@/hooks/query/customers';
 import { useCreateExpense } from '@/hooks/query/expenses';
+import { useInvoices } from '@/hooks/query/invoices';
 import { useCurrentOrganization } from '@/hooks/query/organization';
 import { useAuthOrganizationId } from '@/hooks/state';
+import { useApiFetcher } from '@/hooks/useRequest';
 import { setCookie } from '@/utils';
 
 interface SavedReceipt {
   amount: number;
   category: string;
+  invoiceNo?: string;
+  customerName?: string;
 }
 
 /**
@@ -47,6 +61,8 @@ export function ReceiptCapturePage() {
   const { data: accounts, isLoading: isAccountsLoading } = useAccounts({});
   const { mutateAsync: uploadAttachment } = useUploadAttachments();
   const { mutateAsync: createExpense } = useCreateExpense();
+  const { mutateAsync: createAccount } = useCreateAccount();
+  const fetcher = useApiFetcher({ enableCamelCaseTransform: true });
 
   const { categories, paidFrom } = useMemo(
     () => groupCaptureAccounts((accounts || []) as unknown as CaptureAccount[]),
@@ -61,10 +77,40 @@ export function ReceiptCapturePage() {
       description: '',
       categoryAccountId: lastUsed.categoryAccountId || '',
       paidFromAccountId: lastUsed.paidFromAccountId || '',
-      taxTreatment: 'deductible',
+      receiptTag: 'other',
+      reimbursable: false,
+      reimburseCustomerId: '',
+      reimburseInvoiceId: '',
     };
   };
   const [values, setValues] = useState<ReceiptCaptureValues>(emptyValues);
+
+  const { data: customersData } = useCustomers(
+    { page_size: 500 },
+    { enabled: values.reimbursable },
+  );
+  const customers = (customersData?.data || []) as Array<{
+    id: number;
+    displayName: string;
+  }>;
+  const { data: invoicesData, isFetching: isInvoicesFetching } = useInvoices(
+    { page_size: 500 } as Parameters<typeof useInvoices>[0],
+    { enabled: !!values.reimburseCustomerId } as Parameters<
+      typeof useInvoices
+    >[1],
+  );
+  const openInvoices = useMemo(
+    () =>
+      getOpenInvoicesForCustomer(
+        (invoicesData?.data || []) as unknown as ReimburseInvoice[],
+        values.reimburseCustomerId,
+      ),
+    [invoicesData, values.reimburseCustomerId],
+  );
+  const pendingCategoryName = isNewCategory(values.categoryAccountId)
+    ? values.categoryAccountId.slice(NEW_CATEGORY_PREFIX.length)
+    : null;
+  const selectedTag = getReceiptTagOption(values.receiptTag);
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,11 +123,11 @@ export function ReceiptCapturePage() {
     if (!accounts) return;
     setValues((v) => ({
       ...v,
-      categoryAccountId: categories.some(
-        (a) => String(a.id) === v.categoryAccountId,
-      )
-        ? v.categoryAccountId
-        : '',
+      categoryAccountId:
+        isNewCategory(v.categoryAccountId) ||
+        categories.some((a) => String(a.id) === v.categoryAccountId)
+          ? v.categoryAccountId
+          : '',
       paidFromAccountId: paidFrom.some(
         (a) => String(a.id) === v.paidFromAccountId,
       )
@@ -121,6 +167,38 @@ export function ReceiptCapturePage() {
     e.target.value = '';
   };
 
+  const handlePickTag = (tagValue: ReceiptCaptureValues['receiptTag']) => {
+    const tag = getReceiptTagOption(tagValue);
+    if (!tag) return;
+    setError(null);
+    setValues((v) => ({
+      ...v,
+      receiptTag: tag.value,
+      categoryAccountId: getTagCategory(tag, categories, v.categoryAccountId),
+    }));
+  };
+
+  /**
+   * Returns the category account id, creating the tag's account the first
+   * time it is used in this business.
+   */
+  const resolveCategoryAccountId = async (): Promise<number> => {
+    if (!pendingCategoryName) return Number(values.categoryAccountId);
+
+    await createAccount({
+      name: pendingCategoryName,
+      accountType: 'expense',
+    } as Parameters<typeof createAccount>[0]);
+    const refreshed = (await fetchAccounts(fetcher, {})) as unknown as
+      | CaptureAccount[]
+      | undefined;
+    const created = (refreshed || []).find(
+      (a) => a.name.toLowerCase() === pendingCategoryName.toLowerCase(),
+    );
+    if (!created) throw new Error('category');
+    return created.id;
+  };
+
   const handleSwitchBusiness = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const nextId = e.target.value;
     if (!nextId || nextId === organizationId) return;
@@ -144,24 +222,43 @@ export function ReceiptCapturePage() {
       const key = (uploaded as { key?: string })?.key;
       if (!key) throw new Error('upload');
 
+      const categoryAccountId = await resolveCategoryAccountId();
       await createExpense(
-        buildExpenseRequest(values, key) as unknown as Parameters<
-          typeof createExpense
-        >[0],
+        buildExpenseRequest(
+          values,
+          key,
+          categoryAccountId,
+        ) as unknown as Parameters<typeof createExpense>[0],
       );
+      // Remember the account, not the tag's new-category placeholder.
       saveLastUsed(organizationId, {
-        categoryAccountId: values.categoryAccountId,
+        categoryAccountId: String(categoryAccountId),
         paidFromAccountId: values.paidFromAccountId,
       });
+      const invoice = openInvoices.find(
+        (inv) => String(inv.id) === values.reimburseInvoiceId,
+      );
       setSaved({
         amount: parseAmount(values.amount) as number,
         category:
+          pendingCategoryName ||
           categories.find((a) => String(a.id) === values.categoryAccountId)
-            ?.name || '',
+            ?.name ||
+          '',
+        invoiceNo: invoice?.invoiceNo,
+        customerName: values.reimbursable
+          ? customers.find((c) => String(c.id) === values.reimburseCustomerId)
+              ?.displayName
+          : undefined,
       });
-    } catch {
+    } catch (err) {
+      const serverMessage = (
+        err as { data?: { errors?: Array<{ message?: string | null }> } }
+      )?.data?.errors?.[0]?.message;
       setError(
-        'The receipt was not saved. Check your connection and try again.',
+        serverMessage
+          ? `The receipt was not saved. ${serverMessage}`
+          : 'The receipt was not saved. Check your connection and try again.',
       );
     } finally {
       setIsSaving(false);
@@ -215,6 +312,19 @@ export function ReceiptCapturePage() {
             <Icon icon="tick-circle" size={40} intent={Intent.SUCCESS} />
             <SavedAmount>{formatMoney(saved.amount)}</SavedAmount>
             <div>Saved to {saved.category || 'expenses'} with the photo.</div>
+            {saved.invoiceNo && (
+              <div>
+                Added to invoice {saved.invoiceNo}
+                {saved.customerName ? ` for ${saved.customerName}` : ''}, with
+                the receipt attached.
+              </div>
+            )}
+            {!saved.invoiceNo && saved.customerName && (
+              <div>
+                Marked to bill back to {saved.customerName}. It is not on an
+                invoice yet.
+              </div>
+            )}
             <Button
               large
               fill
@@ -269,6 +379,27 @@ export function ReceiptCapturePage() {
               />
             </FormGroup>
 
+            <FormGroup label="What was it for?">
+              <TagChoices role="radiogroup" aria-label="What was it for?">
+                {RECEIPT_TAG_OPTIONS.map((option) => (
+                  <TagChoice
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={values.receiptTag === option.value}
+                    data-selected={values.receiptTag === option.value}
+                    onClick={() => handlePickTag(option.value)}
+                  >
+                    <Icon icon={option.icon as never} size={18} />
+                    <span>{option.label}</span>
+                  </TagChoice>
+                ))}
+              </TagChoices>
+              {selectedTag && (
+                <Hint>{TAX_TREATMENT_HINTS[selectedTag.taxTreatment]}</Hint>
+              )}
+            </FormGroup>
+
             <Row>
               <FormGroup label="Date" labelFor="receipt-date">
                 <InputGroup
@@ -300,6 +431,14 @@ export function ReceiptCapturePage() {
                 onChange={setField('categoryAccountId')}
                 options={[
                   { value: '', label: 'Pick a category' },
+                  ...(pendingCategoryName
+                    ? [
+                        {
+                          value: values.categoryAccountId,
+                          label: `${pendingCategoryName} (new category)`,
+                        },
+                      ]
+                    : []),
                   ...categories.map((a) => ({
                     value: String(a.id),
                     label: a.name,
@@ -326,31 +465,82 @@ export function ReceiptCapturePage() {
               />
             </FormGroup>
 
-            <FormGroup label="For taxes">
-              <TaxChoices role="radiogroup" aria-label="For taxes">
-                {TAX_TREATMENT_OPTIONS.map((option) => (
-                  <TaxChoice
-                    key={option.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={values.taxTreatment === option.value}
-                    data-selected={values.taxTreatment === option.value}
-                    onClick={() =>
-                      setValues((v) => ({ ...v, taxTreatment: option.value }))
+            <FormGroup label="Bill it back to someone?">
+              <Switch
+                large
+                checked={values.reimbursable}
+                label="Reimbursable by a customer or job"
+                onChange={(e) => {
+                  const checked = (e.target as HTMLInputElement).checked;
+                  setError(null);
+                  setValues((v) => ({
+                    ...v,
+                    reimbursable: checked,
+                    ...(checked
+                      ? {}
+                      : { reimburseCustomerId: '', reimburseInvoiceId: '' }),
+                  }));
+                }}
+              />
+            </FormGroup>
+
+            {values.reimbursable && (
+              <ReimburseBox>
+                <FormGroup label="Customer or job" labelFor="receipt-customer">
+                  <HTMLSelect
+                    id="receipt-customer"
+                    fill
+                    large
+                    value={values.reimburseCustomerId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setError(null);
+                      setValues((v) => ({
+                        ...v,
+                        reimburseCustomerId: id,
+                        reimburseInvoiceId: '',
+                      }));
+                    }}
+                    options={[
+                      { value: '', label: 'Pick a customer or job' },
+                      ...customers.map((c) => ({
+                        value: String(c.id),
+                        label: c.displayName,
+                      })),
+                    ]}
+                  />
+                </FormGroup>
+                {values.reimburseCustomerId && (
+                  <FormGroup
+                    label="Add to invoice"
+                    labelFor="receipt-invoice"
+                    helperText={
+                      values.reimburseInvoiceId
+                        ? 'The receipt goes on the invoice as a line item, with the photo attached.'
+                        : 'You can add it to an invoice later.'
                     }
                   >
-                    {option.label}
-                  </TaxChoice>
-                ))}
-              </TaxChoices>
-              <Hint>
-                {
-                  TAX_TREATMENT_OPTIONS.find(
-                    (o) => o.value === values.taxTreatment,
-                  )?.hint
-                }
-              </Hint>
-            </FormGroup>
+                    <HTMLSelect
+                      id="receipt-invoice"
+                      fill
+                      large
+                      disabled={isInvoicesFetching}
+                      value={values.reimburseInvoiceId}
+                      onChange={setField('reimburseInvoiceId')}
+                      options={[
+                        { value: '', label: 'Not yet' },
+                        ...openInvoices.map((inv) => ({
+                          value: String(inv.id),
+                          label: `${inv.invoiceNo || `Invoice ${inv.id}`}${
+                            inv.isDelivered ? '' : ' (draft)'
+                          }${inv.totalFormatted ? ` · ${inv.totalFormatted}` : ''}`,
+                        })),
+                      ]}
+                    />
+                  </FormGroup>
+                )}
+              </ReimburseBox>
+            )}
 
             {error && <Callout intent={Intent.DANGER}>{error}</Callout>}
           </>
@@ -488,32 +678,59 @@ const Row = styled.div`
   }
 `;
 
-const TaxChoices = styled.div`
+const TagChoices = styled.div`
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+
+  @media (max-width: 340px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 `;
 
-const TaxChoice = styled.button`
-  min-height: 44px;
-  border-radius: 8px;
+const TagChoice = styled.button`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 64px;
+  padding: 6px 4px;
+  border-radius: 10px;
   border: 1px solid rgba(128, 128, 128, 0.45);
   background: transparent;
   color: inherit;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
   cursor: pointer;
+
+  .bp4-icon {
+    color: #5f6b7c;
+  }
 
   &[data-selected='true'] {
     border-color: #2d72d2;
     background: #2d72d2;
     color: #fff;
+
+    .bp4-icon {
+      color: #fff;
+    }
   }
 
   &:focus-visible {
     outline: 2px solid #2d72d2;
     outline-offset: 2px;
   }
+`;
+
+const ReimburseBox = styled.div`
+  margin: -4px 0 12px;
+  padding: 12px 12px 0;
+  border-radius: 10px;
+  border: 1px solid rgba(128, 128, 128, 0.3);
 `;
 
 const Hint = styled.div`
