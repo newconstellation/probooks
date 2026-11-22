@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react';
 import intl from 'react-intl-universal';
 import type { ComponentType } from 'react';
 import { Icon, IconProps, FormattedMessage as T } from '@/components';
+import { BrandMark } from '@/components/Brand/BrandLogo';
 import { DRAWERS } from '@/constants/drawers';
 import {
   withDrawerActions,
@@ -26,7 +27,6 @@ import {
 } from '@/hooks/query';
 import { useAuthOrganizationId, useAuthActions } from '@/hooks/state';
 import { firstLettersArgs } from '@/utils';
-import { BrandMark } from '@/components/Brand/BrandLogo';
 
 // Popover modifiers.
 const POPOVER_MODIFIERS = {

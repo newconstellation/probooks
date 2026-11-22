@@ -1,8 +1,8 @@
 import classNames from 'classnames';
 import React from 'react';
+import { BrandLogo } from '@/components/Brand/BrandLogo';
 
 import '@/style/components/BigcapitalLoading.scss';
-import { BrandLogo } from '@/components/Brand/BrandLogo';
 
 interface BigcapitalLoadingProps {
   className?: string;

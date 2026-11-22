@@ -1,7 +1,7 @@
 import { For, FormattedMessage as T } from '@/components';
+import { BrandLogo } from '@/components/Brand/BrandLogo';
 import { getFooterLinks } from '@/constants/footerLinks';
 import { useAuthActions } from '@/hooks/state';
-import { BrandLogo } from '@/components/Brand/BrandLogo';
 
 /**
  * Footer item link.

@@ -6,10 +6,10 @@ import { TransitionGroup, CSSTransition } from 'react-transition-group';
 import styled from 'styled-components';
 import { AuthMetaBootProvider } from './AuthMetaBoot';
 import { Box } from '@/components';
+import { BrandLogo } from '@/components/Brand/BrandLogo';
 import authenticationRoutes from '@/routes/authentication';
 
 import '@/style/pages/Authentication/Auth.scss';
-import { BrandLogo } from '@/components/Brand/BrandLogo';
 
 export function Authentication() {
   return (
