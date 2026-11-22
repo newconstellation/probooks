@@ -44,7 +44,7 @@ export const PaymentReceivedEmailTemplate: React.FC<
   preview,
 
   // # Company
-  companyName = 'Bigcapital, Inc.',
+  companyName = 'Your Company, Inc.',
   companyLogoUri,
 
   // # Payment #

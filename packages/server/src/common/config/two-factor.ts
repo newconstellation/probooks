@@ -11,5 +11,5 @@ export default registerAs('twoFactor', () => ({
   /**
    * Issuer name shown in authenticator apps.
    */
-  issuer: process.env.TWO_FACTOR_ISSUER || 'Bigcapital',
+  issuer: process.env.TWO_FACTOR_ISSUER || 'Probooks',
 }));

@@ -17,8 +17,4 @@ export const getFooterLinks = (): Array<{ title: string; link: string }> => [
     title: intl.get('docs'),
     link: 'https://docs.bigcapital.ly',
   },
-  {
-    title: 'Bigcapital',
-    link: 'http://bigcapital.ly',
-  },
 ];
