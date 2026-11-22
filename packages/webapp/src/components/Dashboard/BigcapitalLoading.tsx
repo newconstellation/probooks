@@ -17,7 +17,7 @@ export default function BigcapitalLoading({
   return (
     <div className={classNames('bigcapital-loading', className)}>
       <div className="center">
-        <BrandLogo height={40} className="bigcapital-logo" />
+        <BrandLogo height={56} className="bigcapital-logo" />
       </div>
     </div>
   );

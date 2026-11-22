@@ -11,7 +11,7 @@ export function AuthContainer({ children }: AuthContainerProps) {
     <AuthPage>
       <AuthInsider>
         <AuthLogo>
-          <BrandLogo height={40} />
+          <BrandLogo height={72} />
         </AuthLogo>
 
         {children}

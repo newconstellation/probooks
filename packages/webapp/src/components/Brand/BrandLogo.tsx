@@ -32,7 +32,13 @@ export function BrandLogo({
       }
       alt={BRAND_NAME}
       height={height}
-      style={{ height, width: 'auto', display: 'inline-block' }}
+      style={{
+        height,
+        width: 'auto',
+        maxWidth: '100%',
+        objectFit: 'contain',
+        display: 'inline-block',
+      }}
       className={className}
     />
   );

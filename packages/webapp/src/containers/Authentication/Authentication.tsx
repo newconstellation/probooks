@@ -17,7 +17,7 @@ export function Authentication() {
       <AuthPage>
         <AuthInsider>
           <AuthLogo>
-            <BrandLogo height={40} />
+            <BrandLogo height={72} />
           </AuthLogo>
 
           <AuthMetaBootProvider>
