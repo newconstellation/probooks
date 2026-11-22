@@ -38,7 +38,7 @@ export function TrialStatus() {
             style={{ marginTop: '0.4rem', lineHeight: 1.6 }}
           >
             {isOnTrial
-              ? `You have ${daysLeft} ${dayLabel} left. Your trial ends on ${mainSubscription.trialEndsAtFormatted}. Upgrade to Go to keep using Bigcapital after your trial.`
+              ? `You have ${daysLeft} ${dayLabel} left. Your trial ends on ${mainSubscription.trialEndsAtFormatted}. Upgrade to Go to keep using Probooks after your trial.`
               : `Your trial ended on ${mainSubscription.trialEndsAtFormatted}. Subscribe to Go to keep making changes. Your data is safe and stays available to view.`}
           </Text>
         </Box>

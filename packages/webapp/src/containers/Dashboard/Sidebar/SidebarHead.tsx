@@ -26,6 +26,7 @@ import {
 } from '@/hooks/query';
 import { useAuthOrganizationId, useAuthActions } from '@/hooks/state';
 import { firstLettersArgs } from '@/utils';
+import { BrandMark } from '@/components/Brand/BrandLogo';
 
 // Popover modifiers.
 const POPOVER_MODIFIERS = {
@@ -338,12 +339,7 @@ function SidebarHeadJSX({
       </div>
 
       <div className="sidebar__head-logo">
-        <Icon
-          icon={'mini-bigcapital'}
-          width={28}
-          height={28}
-          className="bigcapital--alt"
-        />
+        <BrandMark size={28} />
       </div>
     </div>
   );

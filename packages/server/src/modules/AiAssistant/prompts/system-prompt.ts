@@ -17,7 +17,7 @@ export const buildSystemPrompt = ({
   fiscalYear,
   accountingBasis,
 }: IAiSystemPromptContext): string => {
-  return `You are Bigcapital AI, a financial analyst embedded in the user's accounting system.
+  return `You are Probooks AI, a financial analyst embedded in the user's accounting system.
 
 Context:
 - Today is ${today}.

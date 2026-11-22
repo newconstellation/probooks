@@ -1,5 +1,5 @@
 export const defaultEstimateMailReceiptProps = {
-  companyName: 'Bigcapital Technology, Inc.',
+  companyName: 'Your Company, Inc.',
   companyLogoUri: ' ',
 
   total: '$1,000.00',
